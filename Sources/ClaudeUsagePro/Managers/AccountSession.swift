@@ -103,6 +103,45 @@ class AccountSession: ObservableObject, Identifiable {
         return prev > 0 && currentPercentage == 0 && currentReset == "Ready"
     }
 
+    /// Check for threshold crossings and trigger notifications if detected and enabled
+    /// - Parameter usageData: The current usage data to check against previous values
+    private func checkThresholdCrossingsAndNotify(usageData: UsageData) {
+        let accountName = account.name
+
+        // Check session threshold crossings
+        if didCrossThreshold(previous: previousSessionPercentage, current: usageData.sessionPercentage, threshold: 0.75) {
+            if NotificationSettings.shouldSend(type: .sessionThreshold75) {
+                NotificationManager.shared.sendNotification(type: .sessionThreshold75, accountName: accountName)
+            }
+        }
+
+        if didCrossThreshold(previous: previousSessionPercentage, current: usageData.sessionPercentage, threshold: 0.90) {
+            if NotificationSettings.shouldSend(type: .sessionThreshold90) {
+                NotificationManager.shared.sendNotification(type: .sessionThreshold90, accountName: accountName)
+            }
+        }
+
+        // Check weekly threshold crossings
+        if didCrossThreshold(previous: previousWeeklyPercentage, current: usageData.weeklyPercentage, threshold: 0.75) {
+            if NotificationSettings.shouldSend(type: .weeklyThreshold75) {
+                NotificationManager.shared.sendNotification(type: .weeklyThreshold75, accountName: accountName)
+            }
+        }
+
+        if didCrossThreshold(previous: previousWeeklyPercentage, current: usageData.weeklyPercentage, threshold: 0.90) {
+            if NotificationSettings.shouldSend(type: .weeklyThreshold90) {
+                NotificationManager.shared.sendNotification(type: .weeklyThreshold90, accountName: accountName)
+            }
+        }
+
+        // Check session ready state transition
+        if didTransitionToReady(previousPercentage: previousSessionPercentage, currentPercentage: usageData.sessionPercentage, currentReset: usageData.sessionReset) {
+            if NotificationSettings.shouldSend(type: .sessionReady) {
+                NotificationManager.shared.sendNotification(type: .sessionReady, accountName: accountName)
+            }
+        }
+    }
+
     private func setupTracker() {
         tracker?.onUpdate = { [weak self] usageData in
             guard let self = self else { return }
@@ -117,6 +156,9 @@ class AccountSession: ObservableObject, Identifiable {
                 self.account.usageData = usageData
 
                 print("[DEBUG] UsageData \(self.account.name): session=\(Int(usageData.sessionPercentage * 100))% reset=\(usageData.sessionReset) weekly=\(Int(usageData.weeklyPercentage * 100))% reset=\(usageData.weeklyReset)")
+
+                // Threshold Detection & Notification Triggering
+                self.checkThresholdCrossingsAndNotify(usageData: usageData)
 
                 // Auto-Ping Logic
                 if usageData.sessionPercentage == 0, usageData.sessionReset == "Ready" {
