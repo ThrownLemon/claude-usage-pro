@@ -4,8 +4,9 @@ import Combine
 @main
 struct ClaudeUsageProApp: App {
     @StateObject private var appState = AppState()
-    @StateObject private var authManager = AuthManager() 
-    
+    @StateObject private var authManager = AuthManager()
+    @StateObject private var notificationManager = NotificationManager.shared
+
     var body: some Scene {
         MenuBarExtra {
             ContentView(appState: appState, authManager: authManager)
@@ -126,6 +127,34 @@ struct ContentView: View {
                 appState.addAccount(cookies: cookies)
             }
             appState.nextRefresh = Date().addingTimeInterval(appState.refreshIntervalSeconds())
+
+            // Request notification permission on first launch
+            requestNotificationPermission()
+        }
+    }
+
+    // Request notification permission on app launch
+    private func requestNotificationPermission() {
+        let notificationManager = NotificationManager.shared
+
+        // Only request if not determined yet
+        if notificationManager.authorizationStatus == .notDetermined {
+            notificationManager.onPermissionGranted = {
+                print("[DEBUG] Notifications: Permission granted")
+            }
+
+            notificationManager.onPermissionDenied = {
+                print("[DEBUG] Notifications: Permission denied by user")
+            }
+
+            notificationManager.onError = { error in
+                print("[DEBUG] Notifications: Error requesting permission - \(error.localizedDescription)")
+            }
+
+            notificationManager.requestPermission()
+        } else {
+            // Permission already determined (granted or denied)
+            print("[DEBUG] Notifications: Authorization status is \(notificationManager.authorizationStatus.rawValue)")
         }
     }
 }
