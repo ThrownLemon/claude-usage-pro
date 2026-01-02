@@ -73,6 +73,36 @@ class AccountSession: ObservableObject, Identifiable {
         tracker?.fetchUsage(cookies: account.cookies)
     }
     
+    // MARK: - Threshold Detection
+
+    /// Detects if usage has crossed a threshold (from below to at-or-above)
+    /// - Parameters:
+    ///   - previous: Previous percentage value (0.0 to 1.0), or nil if no previous value
+    ///   - current: Current percentage value (0.0 to 1.0)
+    ///   - threshold: Threshold percentage value (0.0 to 1.0)
+    /// - Returns: true if threshold was crossed (previous < threshold AND current >= threshold)
+    private func didCrossThreshold(previous: Double?, current: Double, threshold: Double) -> Bool {
+        // If no previous value, don't trigger (avoid firing on app launch)
+        guard let prev = previous else { return false }
+
+        // Crossing occurs when: previous was below threshold AND current is at or above threshold
+        return prev < threshold && current >= threshold
+    }
+
+    /// Detects if session transitioned to Ready state (from non-zero usage to 0% with "Ready" status)
+    /// - Parameters:
+    ///   - previousPercentage: Previous session percentage (0.0 to 1.0), or nil if no previous value
+    ///   - currentPercentage: Current session percentage (0.0 to 1.0)
+    ///   - currentReset: Current session reset status string
+    /// - Returns: true if session just became ready (previous > 0, current == 0, status == "Ready")
+    private func didTransitionToReady(previousPercentage: Double?, currentPercentage: Double, currentReset: String) -> Bool {
+        // If no previous value, don't trigger (avoid firing on app launch)
+        guard let prev = previousPercentage else { return false }
+
+        // Ready transition occurs when: previous was non-zero AND current is zero AND status is "Ready"
+        return prev > 0 && currentPercentage == 0 && currentReset == "Ready"
+    }
+
     private func setupTracker() {
         tracker?.onUpdate = { [weak self] usageData in
             guard let self = self else { return }
@@ -85,9 +115,9 @@ class AccountSession: ObservableObject, Identifiable {
 
                 // Update internal account data
                 self.account.usageData = usageData
-                
+
                 print("[DEBUG] UsageData \(self.account.name): session=\(Int(usageData.sessionPercentage * 100))% reset=\(usageData.sessionReset) weekly=\(Int(usageData.weeklyPercentage * 100))% reset=\(usageData.weeklyReset)")
-                
+
                 // Auto-Ping Logic
                 if usageData.sessionPercentage == 0, usageData.sessionReset == "Ready" {
                     if UserDefaults.standard.bool(forKey: "autoWakeUp") {
@@ -95,17 +125,17 @@ class AccountSession: ObservableObject, Identifiable {
                         self.ping()
                     }
                 }
-                
+
                 // Auto-update name if email is found and name is still default
                 if let email = usageData.email, self.account.name.starts(with: "Account ") {
                     self.account.name = email
                 }
-                
+
                 // Propagate changes if needed (observer will see @Published account change)
                 self.objectWillChange.send()
             }
         }
-        
+
         tracker?.onError = { [weak self] error in
             DispatchQueue.main.async {
                 self?.isFetching = false
