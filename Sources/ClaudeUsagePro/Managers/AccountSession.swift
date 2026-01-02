@@ -6,7 +6,11 @@ class AccountSession: ObservableObject, Identifiable {
     let id: UUID
     @Published var account: ClaudeAccount
     @Published var isFetching: Bool = false
-    
+
+    // Track previous usage percentages to detect threshold crossings
+    private var previousSessionPercentage: Double?
+    private var previousWeeklyPercentage: Double?
+
     private var tracker: TrackerService?
     private var timer: Timer?
     var onRefreshTick: (() -> Void)?
@@ -74,7 +78,11 @@ class AccountSession: ObservableObject, Identifiable {
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.isFetching = false
-                
+
+                // Store previous values before updating (for threshold crossing detection)
+                self.previousSessionPercentage = self.account.usageData?.sessionPercentage
+                self.previousWeeklyPercentage = self.account.usageData?.weeklyPercentage
+
                 // Update internal account data
                 self.account.usageData = usageData
                 
