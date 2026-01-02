@@ -7,3 +7,11 @@ macosx/
 
 # Auto Claude data directory
 .auto-claude/
+.auto-claude-status
+.claude_settings.json
+
+# Git worktrees
+.worktrees/
+
+# IDE
+.vscode/
