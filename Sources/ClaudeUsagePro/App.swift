@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @main
 struct ClaudeUsageProApp: App {
@@ -10,8 +11,9 @@ struct ClaudeUsageProApp: App {
             ContentView(appState: appState, authManager: authManager)
                 .environmentObject(appState)
         } label: {
-            let icon = appState.sessions.isEmpty ? "xmark.circle" : "checkmark.circle"
-            Image(systemName: icon)
+            let state = appState.menuBarIconState
+            Image(systemName: state.iconName)
+                .foregroundColor(state.iconColor)
         }
         .menuBarExtraStyle(.window)
     }
@@ -207,9 +209,11 @@ struct AddAccountCardView: View {
 class AppState: ObservableObject {
     @Published var sessions: [AccountSession] = []
     @Published var nextRefresh: Date = Date()
-    
+    @Published var iconRefreshTrigger = UUID()
+
     private let defaults = UserDefaults.standard
     private let accountsKey = "savedAccounts"
+    private var sessionChangeCancellables = Set<AnyCancellable>()
     
     init() {
         loadAccounts()
@@ -225,8 +229,16 @@ class AppState: ObservableObject {
         let session = AccountSession(account: newAccount)
         sessions.append(session)
         saveAccounts()
-        // Updated call: use startMonitoring() from Managers/AccountSession
+        subscribeToSessionChanges(session)
         session.startMonitoring()
+    }
+
+    private func subscribeToSessionChanges(_ session: AccountSession) {
+        session.objectWillChange
+            .sink { [weak self] _ in
+                self?.iconRefreshTrigger = UUID()
+            }
+            .store(in: &sessionChangeCancellables)
     }
     
     func removeAccount(id: UUID) {
@@ -254,18 +266,46 @@ class AppState: ObservableObject {
     private func loadAccounts() {
         if let data = defaults.data(forKey: accountsKey),
            var accounts = try? JSONDecoder().decode([ClaudeAccount].self, from: data) {
-            // Clear cached usageData so all cards start with loading animation
             for i in accounts.indices {
                 accounts[i].usageData = nil
             }
-            
-            // Maps to Managers/AccountSession
+
             self.sessions = accounts.map { AccountSession(account: $0) }
-            
-            // Restart monitoring for loaded sessions
+
             for session in self.sessions {
+                subscribeToSessionChanges(session)
                 session.startMonitoring()
             }
+        }
+    }
+
+    var menuBarIconState: MenuBarIconState {
+        guard !sessions.isEmpty else { return .noAccounts }
+
+        if sessions.contains(where: { $0.isFetching }) {
+            return .loading
+        }
+
+        let accountsWithData = sessions.compactMap { $0.account.usageData }
+
+        if accountsWithData.isEmpty {
+            return .noData
+        }
+
+        let maxSessionPercentage = accountsWithData.map { $0.sessionPercentage }.max() ?? 0
+
+        let hasReadyState = accountsWithData.contains {
+            $0.sessionPercentage == 0 && $0.sessionReset == "Ready"
+        }
+
+        if hasReadyState && maxSessionPercentage == 0 {
+            return .ready
+        } else if maxSessionPercentage < 0.5 {
+            return .lowUsage
+        } else if maxSessionPercentage < 0.75 {
+            return .mediumUsage
+        } else {
+            return .highUsage
         }
     }
 }
@@ -295,7 +335,38 @@ struct CountdownView: View {
     }
 }
 
-// Wrapper for the row that observes the session object
+enum MenuBarIconState {
+    case noAccounts
+    case loading
+    case noData
+    case ready
+    case lowUsage
+    case mediumUsage
+    case highUsage
+
+    var iconName: String {
+        switch self {
+        case .noAccounts: return "xmark.circle"
+        case .loading: return "circle.dotted"
+        case .noData: return "questionmark.circle"
+        case .ready: return "play.circle.fill"
+        case .lowUsage, .mediumUsage, .highUsage: return "checkmark.circle"
+        }
+    }
+
+    var iconColor: Color {
+        switch self {
+        case .noAccounts: return .secondary
+        case .loading: return .blue
+        case .noData: return .gray
+        case .ready: return .green
+        case .lowUsage: return .green
+        case .mediumUsage: return .orange
+        case .highUsage: return .red
+        }
+    }
+}
+
 struct AccountRowSessionView: View {
     @ObservedObject var session: AccountSession
     

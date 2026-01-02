@@ -4,3 +4,6 @@
 /*.xcodeproj
 macosx/
 .swiftpm/
+
+# Auto Claude data directory
+.auto-claude/
