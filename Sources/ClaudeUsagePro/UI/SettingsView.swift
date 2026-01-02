@@ -5,7 +5,14 @@ struct SettingsView: View {
     @AppStorage("autoWakeUp") private var autoWakeUp: Bool = false
     @EnvironmentObject var appState: AppState
     @State private var lastRefreshInterval: Double = 300
-    @State private var notificationSettings: NotificationSettings = .default
+
+    // Notification settings using @AppStorage for reactive updates
+    @AppStorage(NotificationSettings.enabledKey) private var notificationsEnabled: Bool = NotificationSettings.defaultEnabled
+    @AppStorage(NotificationSettings.sessionThreshold75EnabledKey) private var sessionThreshold75Enabled: Bool = NotificationSettings.defaultSessionThreshold75Enabled
+    @AppStorage(NotificationSettings.sessionThreshold90EnabledKey) private var sessionThreshold90Enabled: Bool = NotificationSettings.defaultSessionThreshold90Enabled
+    @AppStorage(NotificationSettings.sessionReadyEnabledKey) private var sessionReadyEnabled: Bool = NotificationSettings.defaultSessionReadyEnabled
+    @AppStorage(NotificationSettings.weeklyThreshold75EnabledKey) private var weeklyThreshold75Enabled: Bool = NotificationSettings.defaultWeeklyThreshold75Enabled
+    @AppStorage(NotificationSettings.weeklyThreshold90EnabledKey) private var weeklyThreshold90Enabled: Bool = NotificationSettings.defaultWeeklyThreshold90Enabled
     
     var body: some View {
         ScrollView {
@@ -41,9 +48,9 @@ struct SettingsView: View {
                     Text("Notifications")
                         .font(.headline)
 
-                    Toggle("Enable Notifications", isOn: $notificationSettings.enabled)
+                    Toggle("Enable Notifications", isOn: $notificationsEnabled)
 
-                    if notificationSettings.enabled {
+                    if notificationsEnabled {
                         Divider()
 
                         // Session Alerts
@@ -51,9 +58,9 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Toggle("Session 75% Threshold", isOn: $notificationSettings.sessionThreshold75Enabled)
-                        Toggle("Session 90% Threshold", isOn: $notificationSettings.sessionThreshold90Enabled)
-                        Toggle("Session Ready", isOn: $notificationSettings.sessionReadyEnabled)
+                        Toggle("Session 75% Threshold", isOn: $sessionThreshold75Enabled)
+                        Toggle("Session 90% Threshold", isOn: $sessionThreshold90Enabled)
+                        Toggle("Session Ready", isOn: $sessionReadyEnabled)
 
                         Text("Get notified when a session is ready to start.")
                             .font(.caption)
@@ -67,8 +74,8 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Toggle("Weekly 75% Threshold", isOn: $notificationSettings.weeklyThreshold75Enabled)
-                        Toggle("Weekly 90% Threshold", isOn: $notificationSettings.weeklyThreshold90Enabled)
+                        Toggle("Weekly 75% Threshold", isOn: $weeklyThreshold75Enabled)
+                        Toggle("Weekly 90% Threshold", isOn: $weeklyThreshold90Enabled)
                     }
                 }
                 .padding()
@@ -111,11 +118,7 @@ struct SettingsView: View {
         }
         .onAppear {
             lastRefreshInterval = refreshInterval
-            notificationSettings = NotificationSettings.load()
             print("[DEBUG] SettingsView appeared")
-        }
-        .onChange(of: notificationSettings) { newValue in
-            newValue.save()
         }
     }
 }

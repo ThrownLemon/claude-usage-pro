@@ -1,59 +1,49 @@
 import Foundation
 
-struct NotificationSettings: Codable {
-    var enabled: Bool
+// UserDefaults-backed notification settings
+// Uses @AppStorage pattern for reactive UI updates
+struct NotificationSettings {
+    // MARK: - UserDefaults Keys
 
-    // Session notification toggles
-    var sessionThreshold75Enabled: Bool
-    var sessionThreshold90Enabled: Bool
-    var sessionReadyEnabled: Bool
+    static let enabledKey = "notificationsEnabled"
+    static let sessionThreshold75EnabledKey = "notificationSessionThreshold75Enabled"
+    static let sessionThreshold90EnabledKey = "notificationSessionThreshold90Enabled"
+    static let sessionReadyEnabledKey = "notificationSessionReadyEnabled"
+    static let weeklyThreshold75EnabledKey = "notificationWeeklyThreshold75Enabled"
+    static let weeklyThreshold90EnabledKey = "notificationWeeklyThreshold90Enabled"
 
-    // Weekly notification toggles
-    var weeklyThreshold75Enabled: Bool
-    var weeklyThreshold90Enabled: Bool
+    // MARK: - Default Values
 
-    // Default settings: all notifications enabled
-    static let `default` = NotificationSettings(
-        enabled: true,
-        sessionThreshold75Enabled: true,
-        sessionThreshold90Enabled: true,
-        sessionReadyEnabled: true,
-        weeklyThreshold75Enabled: true,
-        weeklyThreshold90Enabled: true
-    )
+    // All notifications enabled by default (75%, 90%, Ready)
+    static let defaultEnabled = true
+    static let defaultSessionThreshold75Enabled = true
+    static let defaultSessionThreshold90Enabled = true
+    static let defaultSessionReadyEnabled = true
+    static let defaultWeeklyThreshold75Enabled = true
+    static let defaultWeeklyThreshold90Enabled = true
 
-    // UserDefaults persistence
-    private static let key = "notificationSettings"
+    // MARK: - Helper Methods
 
-    static func load() -> NotificationSettings {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let settings = try? JSONDecoder().decode(NotificationSettings.self, from: data) else {
-            return .default
-        }
-        return settings
-    }
+    // Check if a specific notification type should be sent
+    static func shouldSend(type: NotificationManager.NotificationType) -> Bool {
+        let defaults = UserDefaults.standard
 
-    func save() {
-        if let data = try? JSONEncoder().encode(self) {
-            UserDefaults.standard.set(data, forKey: NotificationSettings.key)
-        }
-    }
-
-    // Helper to check if a specific notification type should be sent
-    func shouldSend(type: NotificationManager.NotificationType) -> Bool {
+        // Check master toggle first
+        let enabled = defaults.object(forKey: enabledKey) as? Bool ?? defaultEnabled
         guard enabled else { return false }
 
+        // Check specific notification type toggle
         switch type {
         case .sessionThreshold75:
-            return sessionThreshold75Enabled
+            return defaults.object(forKey: sessionThreshold75EnabledKey) as? Bool ?? defaultSessionThreshold75Enabled
         case .sessionThreshold90:
-            return sessionThreshold90Enabled
+            return defaults.object(forKey: sessionThreshold90EnabledKey) as? Bool ?? defaultSessionThreshold90Enabled
         case .sessionReady:
-            return sessionReadyEnabled
+            return defaults.object(forKey: sessionReadyEnabledKey) as? Bool ?? defaultSessionReadyEnabled
         case .weeklyThreshold75:
-            return weeklyThreshold75Enabled
+            return defaults.object(forKey: weeklyThreshold75EnabledKey) as? Bool ?? defaultWeeklyThreshold75Enabled
         case .weeklyThreshold90:
-            return weeklyThreshold90Enabled
+            return defaults.object(forKey: weeklyThreshold90EnabledKey) as? Bool ?? defaultWeeklyThreshold90Enabled
         }
     }
 }
