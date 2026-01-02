@@ -5,6 +5,7 @@ struct SettingsView: View {
     @AppStorage("autoWakeUp") private var autoWakeUp: Bool = false
     @EnvironmentObject var appState: AppState
     @State private var lastRefreshInterval: Double = 300
+    @State private var notificationSettings: NotificationSettings = .default
     
     var body: some View {
         ScrollView {
@@ -34,7 +35,46 @@ struct SettingsView: View {
                 .padding()
                 .background(Material.regular)
                 .cornerRadius(8)
-                
+
+                // Notifications Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Notifications")
+                        .font(.headline)
+
+                    Toggle("Enable Notifications", isOn: $notificationSettings.enabled)
+
+                    if notificationSettings.enabled {
+                        Divider()
+
+                        // Session Alerts
+                        Text("Session Alerts")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Toggle("Session 75% Threshold", isOn: $notificationSettings.sessionThreshold75Enabled)
+                        Toggle("Session 90% Threshold", isOn: $notificationSettings.sessionThreshold90Enabled)
+                        Toggle("Session Ready", isOn: $notificationSettings.sessionReadyEnabled)
+
+                        Text("Get notified when a session is ready to start.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 4)
+
+                        Divider()
+
+                        // Weekly Alerts
+                        Text("Weekly Alerts")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Toggle("Weekly 75% Threshold", isOn: $notificationSettings.weeklyThreshold75Enabled)
+                        Toggle("Weekly 90% Threshold", isOn: $notificationSettings.weeklyThreshold90Enabled)
+                    }
+                }
+                .padding()
+                .background(Material.regular)
+                .cornerRadius(8)
+
                 // Accounts Section
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Accounts (\(appState.sessions.count))")
@@ -71,7 +111,11 @@ struct SettingsView: View {
         }
         .onAppear {
             lastRefreshInterval = refreshInterval
+            notificationSettings = NotificationSettings.load()
             print("[DEBUG] SettingsView appeared")
+        }
+        .onChange(of: notificationSettings) { newValue in
+            newValue.save()
         }
     }
 }
