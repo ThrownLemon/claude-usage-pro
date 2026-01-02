@@ -32,12 +32,14 @@ swift build -c release
 ### Key Components
 
 - **App.swift**: Entry point, contains `AppState` (session management, persistence via UserDefaults), `ContentView` (main UI shell), and reusable button components
-- **Managers/AccountSession.swift**: Per-account state wrapper with monitoring timer and auto-ping logic
+- **Managers/AccountSession.swift**: Per-account state wrapper with monitoring timer, auto-ping logic, and threshold crossing detection for notifications
 - **Managers/TrackerService.swift**: WKWebView-based scraper that executes JS to fetch org/usage/tier data from Claude's APIs
 - **Managers/AuthManager.swift**: Handles OAuth-style login flow via embedded WebKit browser
+- **Managers/NotificationManager.swift**: Singleton wrapper for UserNotifications framework with permission management, typed notifications, and rate limiting
 - **Models/Models.swift**: `UsageData` (parsed usage metrics) and `ClaudeAccount` (persisted account with cookie serialization)
+- **Models/NotificationSettings.swift**: UserDefaults-backed settings model for notification preferences with helper methods
 - **UI/UsageView.swift**: Circular session gauge and linear weekly gauge with color-coded thresholds
-- **UI/SettingsView.swift**: Refresh interval picker, auto-wake toggle, account removal
+- **UI/SettingsView.swift**: Refresh interval picker, auto-wake toggle, notification settings, account removal
 
 ### Cookie Persistence
 
@@ -48,3 +50,62 @@ Cookies are serialized to `[String: String]` dictionaries via `HTTPCookie.toCoda
 - `refreshInterval`: Double (seconds between auto-refresh, default 300)
 - `autoWakeUp`: Bool (auto-ping sessions when usage hits 0%)
 - `savedAccounts`: Data (encoded `[ClaudeAccount]` array)
+
+#### Notification Settings
+
+- `notificationsEnabled`: Bool (master toggle for all notifications, default true)
+- `notificationSessionThreshold75Enabled`: Bool (session 75% alert, default true)
+- `notificationSessionThreshold90Enabled`: Bool (session 90% alert, default true)
+- `notificationSessionReadyEnabled`: Bool (session ready alert, default true)
+- `notificationWeeklyThreshold75Enabled`: Bool (weekly 75% alert, default true)
+- `notificationWeeklyThreshold90Enabled`: Bool (weekly 90% alert, default true)
+
+### Notification System
+
+The app sends macOS notifications when usage crosses configurable thresholds, alerting users to session/weekly usage milestones and session ready states.
+
+#### NotificationManager
+
+**Location:** `Managers/NotificationManager.swift`
+
+Singleton class that wraps the UserNotifications framework with:
+
+- **Permission Management**: Requests notification authorization on first launch, tracks authorization status, provides callbacks for granted/denied/error states
+- **Notification Types**: Five distinct notification categories:
+  - `sessionThreshold75`: Session usage reached 75%
+  - `sessionThreshold90`: Session usage reached 90%
+  - `weeklyThreshold75`: Weekly usage reached 75%
+  - `weeklyThreshold90`: Weekly usage reached 90%
+  - `sessionReady`: Session reset to 0% with "Ready" status
+- **Rate Limiting**: 5-minute cooldown per notification type per account to prevent spam during rapid refreshes. Tracks last notification time using key format: `"accountName:notificationType.identifier"`
+- **Foreground Support**: Implements `UNUserNotificationCenterDelegate` to show banners even when app is in foreground
+- **Callback Pattern**: Follows existing TrackerService pattern with `onPermissionGranted`, `onPermissionDenied`, and `onError` callbacks
+
+#### NotificationSettings
+
+**Location:** `Models/NotificationSettings.swift`
+
+UserDefaults-backed settings model that provides:
+
+- **Static Keys**: Constants for all UserDefaults keys (listed above in Settings section)
+- **Default Values**: All notifications enabled by default (75%, 90%, Ready state)
+- **Helper Method**: `shouldSend(type:)` checks master toggle and specific notification type toggle to determine if notification should be sent
+
+Used in `SettingsView` with `@AppStorage` property wrappers for automatic persistence and reactive UI updates.
+
+#### Threshold Detection Logic
+
+**Location:** `Managers/AccountSession.swift`
+
+Threshold crossing detection is implemented in AccountSession to trigger notifications when usage transitions across thresholds:
+
+1. **Previous Value Tracking**: `previousSessionPercentage` and `previousWeeklyPercentage` store usage values from the previous update
+2. **Crossing Detection**: `didCrossThreshold(previous:current:threshold:)` returns true when usage transitions from below to at-or-above a threshold (e.g., 74% → 76% crosses the 75% threshold)
+3. **Ready State Detection**: `didTransitionToReady(previousPercentage:currentPercentage:currentReset:)` returns true when session transitions from non-zero usage to 0% with "Ready" status
+4. **Notification Triggering**: `checkThresholdCrossingsAndNotify(usageData:)` checks all thresholds and sends notifications if:
+   - A threshold was crossed (not just currently above it)
+   - NotificationSettings allows the notification type
+   - NotificationManager's rate limiting permits it
+5. **Launch Edge Case Handling**: `hasReceivedFirstUpdate` flag prevents notifications from firing on app launch with cached data. Previous values remain nil on first update, causing detection methods to return false. Only subsequent updates can trigger notifications.
+
+This approach ensures notifications fire only on actual usage changes, not when loading existing state, and prevents spam through both user-configurable settings and automatic rate limiting.
