@@ -54,11 +54,18 @@ Cookies are serialized to `[String: String]` dictionaries via `HTTPCookie.toCoda
 #### Notification Settings
 
 - `notificationsEnabled`: Bool (master toggle for all notifications, default true)
-- `notificationSessionThreshold75Enabled`: Bool (session 75% alert, default true)
-- `notificationSessionThreshold90Enabled`: Bool (session 90% alert, default true)
+- `notificationSessionThreshold1Enabled`: Bool (session threshold 1 alert, default true)
+- `notificationSessionThreshold2Enabled`: Bool (session threshold 2 alert, default true)
 - `notificationSessionReadyEnabled`: Bool (session ready alert, default true)
-- `notificationWeeklyThreshold75Enabled`: Bool (weekly 75% alert, default true)
-- `notificationWeeklyThreshold90Enabled`: Bool (weekly 90% alert, default true)
+- `notificationWeeklyThreshold1Enabled`: Bool (weekly threshold 1 alert, default true)
+- `notificationWeeklyThreshold2Enabled`: Bool (weekly threshold 2 alert, default true)
+
+#### Threshold Values
+
+- `threshold1Value`: Double (first threshold percentage, default 0.75)
+- `threshold2Value`: Double (second threshold percentage, default 0.90)
+
+Note: Threshold values are shared between session and weekly alerts. Users configure once, applies to both.
 
 ### Notification System
 
@@ -81,15 +88,17 @@ Singleton class that wraps the UserNotifications framework with:
 - **Foreground Support**: Implements `UNUserNotificationCenterDelegate` to show banners even when app is in foreground
 - **Callback Pattern**: Follows existing TrackerService pattern with `onPermissionGranted`, `onPermissionDenied`, and `onError` callbacks
 
-#### NotificationSettings
+#### NotificationSettings & ThresholdDefinitions
 
 **Location:** `Models/NotificationSettings.swift`
 
-UserDefaults-backed settings model that provides:
+Centralized configuration for all notification thresholds:
 
-- **Static Keys**: Constants for all UserDefaults keys (listed above in Settings section)
-- **Default Values**: All notifications enabled by default (75%, 90%, Ready state)
-- **Helper Method**: `shouldSend(type:)` checks master toggle and specific notification type toggle to determine if notification should be sent
+- **ThresholdConfig**: Struct containing threshold configuration (value, UserDefaults keys, notification type, enabled default, labels)
+- **ThresholdDefinitions**: Enum with all threshold configurations (sessionThreshold1/2, weeklyThreshold1/2), default values, and UserDefaults keys
+- **NotificationSettings**: Static helper struct with keys, defaults, and `shouldSend(type:)` method to check if notifications are enabled
+
+Threshold values are user-configurable via sliders in Settings (default 75%/90%). Session and weekly thresholds share the same value keys for unified configuration.
 
 Used in `SettingsView` with `@AppStorage` property wrappers for automatic persistence and reactive UI updates.
 
@@ -100,12 +109,9 @@ Used in `SettingsView` with `@AppStorage` property wrappers for automatic persis
 Threshold crossing detection is implemented in AccountSession to trigger notifications when usage transitions across thresholds:
 
 1. **Previous Value Tracking**: `previousSessionPercentage` and `previousWeeklyPercentage` store usage values from the previous update
-2. **Crossing Detection**: `didCrossThreshold(previous:current:threshold:)` returns true when usage transitions from below to at-or-above a threshold (e.g., 74% → 76% crosses the 75% threshold)
+2. **Crossing Detection**: `didCrossThreshold(previous:current:threshold:)` returns true when usage transitions from below to at-or-above a threshold (e.g., 74% → 76% crosses the configured threshold)
 3. **Ready State Detection**: `didTransitionToReady(previousPercentage:currentPercentage:currentReset:)` returns true when session transitions from non-zero usage to 0% with "Ready" status
-4. **Notification Triggering**: `checkThresholdCrossingsAndNotify(usageData:)` checks all thresholds and sends notifications if:
-   - A threshold was crossed (not just currently above it)
-   - NotificationSettings allows the notification type
-   - NotificationManager's rate limiting permits it
+4. **Centralized Threshold Iteration**: `checkThresholdCrossingsAndNotify(usageData:)` iterates over `ThresholdDefinitions.sessionThresholds` and `ThresholdDefinitions.weeklyThresholds`, reading the current threshold value from UserDefaults via each config's `threshold` computed property
 5. **Launch Edge Case Handling**: `hasReceivedFirstUpdate` flag prevents notifications from firing on app launch with cached data. Previous values remain nil on first update, causing detection methods to return false. Only subsequent updates can trigger notifications.
 
-This approach ensures notifications fire only on actual usage changes, not when loading existing state, and prevents spam through both user-configurable settings and automatic rate limiting.
+This approach ensures notifications fire only on actual usage changes at user-configured thresholds, and prevents spam through both user-configurable settings and automatic rate limiting.

@@ -7,11 +7,19 @@ struct SettingsView: View {
 
     // Notification settings using @AppStorage for reactive updates
     @AppStorage(NotificationSettings.enabledKey) private var notificationsEnabled: Bool = NotificationSettings.defaultEnabled
-    @AppStorage(NotificationSettings.sessionThreshold75EnabledKey) private var sessionThreshold75Enabled: Bool = NotificationSettings.defaultSessionThreshold75Enabled
-    @AppStorage(NotificationSettings.sessionThreshold90EnabledKey) private var sessionThreshold90Enabled: Bool = NotificationSettings.defaultSessionThreshold90Enabled
     @AppStorage(NotificationSettings.sessionReadyEnabledKey) private var sessionReadyEnabled: Bool = NotificationSettings.defaultSessionReadyEnabled
-    @AppStorage(NotificationSettings.weeklyThreshold75EnabledKey) private var weeklyThreshold75Enabled: Bool = NotificationSettings.defaultWeeklyThreshold75Enabled
-    @AppStorage(NotificationSettings.weeklyThreshold90EnabledKey) private var weeklyThreshold90Enabled: Bool = NotificationSettings.defaultWeeklyThreshold90Enabled
+
+    // Session threshold toggles
+    @AppStorage(NotificationSettings.sessionThreshold1EnabledKey) private var sessionThreshold1Enabled: Bool = NotificationSettings.defaultSessionThreshold1Enabled
+    @AppStorage(NotificationSettings.sessionThreshold2EnabledKey) private var sessionThreshold2Enabled: Bool = NotificationSettings.defaultSessionThreshold2Enabled
+
+    // Weekly threshold toggles
+    @AppStorage(NotificationSettings.weeklyThreshold1EnabledKey) private var weeklyThreshold1Enabled: Bool = NotificationSettings.defaultWeeklyThreshold1Enabled
+    @AppStorage(NotificationSettings.weeklyThreshold2EnabledKey) private var weeklyThreshold2Enabled: Bool = NotificationSettings.defaultWeeklyThreshold2Enabled
+
+    // Threshold values (shared between session and weekly for consistency)
+    @AppStorage(NotificationSettings.threshold1ValueKey) private var threshold1Value: Double = NotificationSettings.defaultThreshold1
+    @AppStorage(NotificationSettings.threshold2ValueKey) private var threshold2Value: Double = NotificationSettings.defaultThreshold2
     
     var body: some View {
         ScrollView {
@@ -51,13 +59,36 @@ struct SettingsView: View {
                     if notificationsEnabled {
                         Divider()
 
+                        // Threshold Values Configuration
+                        Text("Threshold Values")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        ThresholdSlider(
+                            label: "Threshold 1",
+                            value: $threshold1Value,
+                            range: 0.50...0.85
+                        )
+
+                        ThresholdSlider(
+                            label: "Threshold 2",
+                            value: $threshold2Value,
+                            range: 0.60...0.99
+                        )
+
+                        Text("Configure when to receive usage alerts.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Divider()
+
                         // Session Alerts
                         Text("Session Alerts")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Toggle("Session 75% Threshold", isOn: $sessionThreshold75Enabled)
-                        Toggle("Session 90% Threshold", isOn: $sessionThreshold90Enabled)
+                        Toggle("Session \(Int(threshold1Value * 100))% Threshold", isOn: $sessionThreshold1Enabled)
+                        Toggle("Session \(Int(threshold2Value * 100))% Threshold", isOn: $sessionThreshold2Enabled)
                         Toggle("Session Ready", isOn: $sessionReadyEnabled)
 
                         Text("Get notified when a session is ready to start.")
@@ -72,8 +103,8 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Toggle("Weekly 75% Threshold", isOn: $weeklyThreshold75Enabled)
-                        Toggle("Weekly 90% Threshold", isOn: $weeklyThreshold90Enabled)
+                        Toggle("Weekly \(Int(threshold1Value * 100))% Threshold", isOn: $weeklyThreshold1Enabled)
+                        Toggle("Weekly \(Int(threshold2Value * 100))% Threshold", isOn: $weeklyThreshold2Enabled)
                     }
                 }
                 .padding()
@@ -116,6 +147,27 @@ struct SettingsView: View {
         }
         .onAppear {
             print("[DEBUG] SettingsView appeared")
+        }
+    }
+}
+
+// MARK: - Threshold Slider Component
+
+struct ThresholdSlider: View {
+    let label: String
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .frame(width: 80, alignment: .leading)
+
+            Slider(value: $value, in: range, step: 0.05)
+
+            Text("\(Int(value * 100))%")
+                .font(.system(.body, design: .monospaced))
+                .frame(width: 40, alignment: .trailing)
         }
     }
 }

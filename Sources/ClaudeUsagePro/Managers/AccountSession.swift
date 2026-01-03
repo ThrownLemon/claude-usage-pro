@@ -111,18 +111,20 @@ class AccountSession: ObservableObject, Identifiable {
     private func checkThresholdCrossingsAndNotify(usageData: UsageData) {
         let accountName = account.name
 
-        // Data-driven threshold checks: (previous, current, threshold, notificationType)
-        let thresholdChecks: [(previous: Double?, current: Double, threshold: Double, type: NotificationManager.NotificationType)] = [
-            (previousSessionPercentage, usageData.sessionPercentage, 0.75, .sessionThreshold75),
-            (previousSessionPercentage, usageData.sessionPercentage, 0.90, .sessionThreshold90),
-            (previousWeeklyPercentage, usageData.weeklyPercentage, 0.75, .weeklyThreshold75),
-            (previousWeeklyPercentage, usageData.weeklyPercentage, 0.90, .weeklyThreshold90),
-        ]
+        // Check session thresholds using centralized configuration
+        for config in ThresholdDefinitions.sessionThresholds {
+            if didCrossThreshold(previous: previousSessionPercentage, current: usageData.sessionPercentage, threshold: config.threshold) {
+                if NotificationSettings.shouldSend(type: config.notificationType) {
+                    NotificationManager.shared.sendNotification(type: config.notificationType, accountName: accountName)
+                }
+            }
+        }
 
-        for check in thresholdChecks {
-            if didCrossThreshold(previous: check.previous, current: check.current, threshold: check.threshold) {
-                if NotificationSettings.shouldSend(type: check.type) {
-                    NotificationManager.shared.sendNotification(type: check.type, accountName: accountName)
+        // Check weekly thresholds using centralized configuration
+        for config in ThresholdDefinitions.weeklyThresholds {
+            if didCrossThreshold(previous: previousWeeklyPercentage, current: usageData.weeklyPercentage, threshold: config.threshold) {
+                if NotificationSettings.shouldSend(type: config.notificationType) {
+                    NotificationManager.shared.sendNotification(type: config.notificationType, accountName: accountName)
                 }
             }
         }
