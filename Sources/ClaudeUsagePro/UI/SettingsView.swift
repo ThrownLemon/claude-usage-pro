@@ -65,18 +65,18 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
 
                         ThresholdSlider(
-                            label: "Threshold 1",
+                            label: "Lower",
                             value: $threshold1Value,
                             range: 0.50...0.85
                         )
 
                         ThresholdSlider(
-                            label: "Threshold 2",
+                            label: "Higher",
                             value: $threshold2Value,
-                            range: 0.60...0.99
+                            range: 0.70...0.99
                         )
 
-                        Text("Configure when to receive usage alerts.")
+                        Text("Get notified when usage reaches these thresholds.")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -87,8 +87,8 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Toggle("Session \(Int(threshold1Value * 100))% Threshold", isOn: $sessionThreshold1Enabled)
-                        Toggle("Session \(Int(threshold2Value * 100))% Threshold", isOn: $sessionThreshold2Enabled)
+                        Toggle("Session at \(Int(threshold1Value * 100))% (Lower)", isOn: $sessionThreshold1Enabled)
+                        Toggle("Session at \(Int(threshold2Value * 100))% (Higher)", isOn: $sessionThreshold2Enabled)
                         Toggle("Session Ready", isOn: $sessionReadyEnabled)
 
                         Text("Get notified when a session is ready to start.")
@@ -103,8 +103,8 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Toggle("Weekly \(Int(threshold1Value * 100))% Threshold", isOn: $weeklyThreshold1Enabled)
-                        Toggle("Weekly \(Int(threshold2Value * 100))% Threshold", isOn: $weeklyThreshold2Enabled)
+                        Toggle("Weekly at \(Int(threshold1Value * 100))% (Lower)", isOn: $weeklyThreshold1Enabled)
+                        Toggle("Weekly at \(Int(threshold2Value * 100))% (Higher)", isOn: $weeklyThreshold2Enabled)
                     }
                 }
                 .padding()

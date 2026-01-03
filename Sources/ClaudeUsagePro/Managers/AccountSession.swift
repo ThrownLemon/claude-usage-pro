@@ -112,23 +112,19 @@ class AccountSession: ObservableObject, Identifiable {
         let accountName = account.name
 
         // Check session thresholds using centralized configuration
-        for config in ThresholdDefinitions.sessionThresholds {
-            if didCrossThreshold(previous: previousSessionPercentage, current: usageData.sessionPercentage, threshold: config.threshold) {
-                if NotificationSettings.shouldSend(type: config.notificationType) {
-                    let thresholdPercent = Int(config.threshold * 100)
-                    NotificationManager.shared.sendNotification(type: config.notificationType, accountName: accountName, thresholdPercent: thresholdPercent)
-                }
-            }
+        for config in ThresholdDefinitions.sessionThresholds
+        where didCrossThreshold(previous: previousSessionPercentage, current: usageData.sessionPercentage, threshold: config.threshold)
+            && NotificationSettings.shouldSend(type: config.notificationType) {
+            let thresholdPercent = Int(config.threshold * 100)
+            NotificationManager.shared.sendNotification(type: config.notificationType, accountName: accountName, thresholdPercent: thresholdPercent)
         }
 
         // Check weekly thresholds using centralized configuration
-        for config in ThresholdDefinitions.weeklyThresholds {
-            if didCrossThreshold(previous: previousWeeklyPercentage, current: usageData.weeklyPercentage, threshold: config.threshold) {
-                if NotificationSettings.shouldSend(type: config.notificationType) {
-                    let thresholdPercent = Int(config.threshold * 100)
-                    NotificationManager.shared.sendNotification(type: config.notificationType, accountName: accountName, thresholdPercent: thresholdPercent)
-                }
-            }
+        for config in ThresholdDefinitions.weeklyThresholds
+        where didCrossThreshold(previous: previousWeeklyPercentage, current: usageData.weeklyPercentage, threshold: config.threshold)
+            && NotificationSettings.shouldSend(type: config.notificationType) {
+            let thresholdPercent = Int(config.threshold * 100)
+            NotificationManager.shared.sendNotification(type: config.notificationType, accountName: accountName, thresholdPercent: thresholdPercent)
         }
 
         // Check session ready state transition

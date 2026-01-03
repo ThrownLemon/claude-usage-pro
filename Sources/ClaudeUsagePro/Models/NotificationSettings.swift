@@ -105,15 +105,6 @@ enum ThresholdDefinitions {
 
     /// All thresholds combined
     static let allThresholds: [ThresholdConfig] = sessionThresholds + weeklyThresholds
-
-    /// Get fresh threshold configs with current values from UserDefaults
-    static func currentSessionThresholds() -> [ThresholdConfig] {
-        sessionThresholds
-    }
-
-    static func currentWeeklyThresholds() -> [ThresholdConfig] {
-        weeklyThresholds
-    }
 }
 
 // MARK: - Notification Settings
