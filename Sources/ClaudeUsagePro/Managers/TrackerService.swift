@@ -343,7 +343,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
             
             switch result {
             case .success(let value):
-                 // print("[DEBUG] TrackerService: JS Result: \(value)")
+                // print("[DEBUG] TrackerService: JS Result: \(value)")
                 
                 if let dict = value as? [String: Any] {
                     let tier = dict["tier"] as? String ?? "Unknown"
@@ -400,6 +400,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                     let data = UsageData(
                         sessionPercentage: sessionPct,
                         sessionReset: sessionReset,
+                        sessionResetDisplay: sessionReset,
                         weeklyPercentage: weeklyPct,
                         weeklyReset: weeklyReset,
                         tier: tier,

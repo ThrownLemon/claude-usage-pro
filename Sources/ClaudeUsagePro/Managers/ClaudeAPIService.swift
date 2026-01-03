@@ -1,5 +1,28 @@
 import Foundation
 
+enum ClaudeAPIError: Error, LocalizedError {
+    case invalidURL(String)
+    case fetchFailed(String, Error?)
+    case parseFailed(String)
+    case unauthorized
+    case badResponse(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL(let endpoint):
+            return "Invalid URL for endpoint: \(endpoint)"
+        case .fetchFailed(let endpoint, let error):
+            return "Failed to fetch from \(endpoint): \(error?.localizedDescription ?? "Unknown error")"
+        case .parseFailed(let model):
+            return "Failed to parse \(model) response"
+        case .unauthorized:
+            return "Session unauthorized. Please log in again."
+        case .badResponse(let statusCode):
+            return "Server returned an error status: \(statusCode)"
+        }
+    }
+}
+
 class ClaudeAPIService {
     private let session: URLSession
     
@@ -9,146 +32,153 @@ class ClaudeAPIService {
         self.session = URLSession(configuration: config)
     }
     
-    func fetchUsage(cookies: [HTTPCookie], completion: @escaping (Result<UsageData, Error>) -> Void) {
-        let baseUrl = "https://claude.ai"
+    func fetchUsage(cookies: [HTTPCookie]) async throws -> UsageData {
+        let orgId = try await fetchOrgId(cookies: cookies)
         
-        guard let orgsUrl = URL(string: "\(baseUrl)/api/organizations") else { return }
-        var orgsRequest = URLRequest(url: orgsUrl)
-        orgsRequest.httpMethod = "GET"
-        setupRequest(&orgsRequest, cookies: cookies)
+        async let usageDataTask = fetchUsageData(orgId: orgId, cookies: cookies)
+        async let userInfoTask = fetchUserInfo(cookies: cookies)
+        async let tierTask = fetchTier(orgId: orgId, cookies: cookies)
         
-        session.dataTask(with: orgsRequest) { [weak self] data, response, error in
-            guard let self = self else { return }
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let data = data, let orgs = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-                  let orgId = orgs.first?["uuid"] as? String ?? orgs.first?["id"] as? String else {
-                completion(.failure(NSError(domain: "ClaudeAPI", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch organizations"])))
-                return
-            }
-            
-            self.fetchUsageData(orgId: orgId, cookies: cookies) { result in
-                switch result {
-                case .success(var usageData):
-                    self.fetchUserInfo(cookies: cookies) { userInfo in
-                        if let userInfo = userInfo {
-                            usageData.email = userInfo.email
-                            usageData.fullName = userInfo.fullName
-                        }
-                        
-                        self.fetchTier(orgId: orgId, cookies: cookies) { tier in
-                            if let tier = tier {
-                                usageData.tier = tier
-                            }
-                            completion(.success(usageData))
-                        }
-                    }
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
-        }.resume()
+        var (usageData, userInfo, tier) = try await (usageDataTask, userInfoTask, tierTask)
+        
+        if let userInfo = userInfo {
+            usageData.email = userInfo.email
+            usageData.fullName = userInfo.fullName
+        }
+        if let tier = tier {
+            usageData.tier = tier
+        }
+        
+        return usageData
     }
     
-    private func fetchUsageData(orgId: String, cookies: [HTTPCookie], completion: @escaping (Result<UsageData, Error>) -> Void) {
-        guard let url = URL(string: "https://claude.ai/api/organizations/\(orgId)/usage") else { return }
+    private func fetchOrgId(cookies: [HTTPCookie]) async throws -> String {
+        guard let url = URL(string: "https://claude.ai/api/organizations") else {
+            throw ClaudeAPIError.invalidURL("organizations")
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         setupRequest(&request, cookies: cookies)
         
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                completion(.failure(NSError(domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch usage data"])))
-                return
-            }
-            
-            var sessionPct = 0.0
-            var sessionReset = "Ready"
-            var weeklyPct = 0.0
-            var weeklyReset = "Ready"
-            
-            if let fiveHour = json["five_hour"] as? [String: Any] {
-                if let util = fiveHour["utilization"] as? Double {
-                    sessionPct = util / 100.0
-                }
-                if let resetDateStr = fiveHour["resets_at"] as? String {
-                    sessionReset = self.formatResetTime(isoDate: resetDateStr)
-                }
-            }
-            
-            if let sevenDay = json["seven_day"] as? [String: Any] {
-                if let util = sevenDay["utilization"] as? Double {
-                    weeklyPct = util / 100.0
-                }
-                if let resetDateStr = sevenDay["resets_at"] as? String {
-                    weeklyReset = self.formatResetDate(isoDate: resetDateStr)
-                }
-            }
-            
-            let dataObj = UsageData(
-                sessionPercentage: sessionPct,
-                sessionReset: sessionReset,
-                weeklyPercentage: weeklyPct,
-                weeklyReset: weeklyReset,
-                tier: "Unknown",
-                email: nil,
-                fullName: nil,
-                orgName: nil,
-                planType: nil
-            )
-            completion(.success(dataObj))
-        }.resume()
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response)
+        
+        guard let orgs = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let orgId = orgs.first?["uuid"] as? String ?? orgs.first?["id"] as? String else {
+            throw ClaudeAPIError.parseFailed("organizations")
+        }
+        return orgId
     }
     
-    private func fetchUserInfo(cookies: [HTTPCookie], completion: @escaping ((email: String?, fullName: String?)?) -> Void) {
+    private func fetchUsageData(orgId: String, cookies: [HTTPCookie]) async throws -> UsageData {
+        guard let url = URL(string: "https://claude.ai/api/organizations/\(orgId)/usage") else {
+            throw ClaudeAPIError.invalidURL("usage")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        setupRequest(&request, cookies: cookies)
+        
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response)
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ClaudeAPIError.parseFailed("usage")
+        }
+        
+        var sessionPct = 0.0
+        var sessionReset = "Ready"
+        var weeklyPct = 0.0
+        var weeklyReset = "Ready"
+        
+        if let fiveHour = json["five_hour"] as? [String: Any] {
+            if let util = fiveHour["utilization"] as? Double {
+                sessionPct = util / 100.0
+            }
+            if let resetDateStr = fiveHour["resets_at"] as? String {
+                sessionReset = formatResetTime(isoDate: resetDateStr)
+            }
+        }
+        
+        if let sevenDay = json["seven_day"] as? [String: Any] {
+            if let util = sevenDay["utilization"] as? Double {
+                weeklyPct = util / 100.0
+            }
+            if let resetDateStr = sevenDay["resets_at"] as? String {
+                weeklyReset = formatResetDate(isoDate: resetDateStr)
+            }
+        }
+        
+        return UsageData(
+            sessionPercentage: sessionPct,
+            sessionReset: sessionReset,
+            sessionResetDisplay: sessionReset,
+            weeklyPercentage: weeklyPct,
+            weeklyReset: weeklyReset,
+            tier: "Unknown",
+            email: nil,
+            fullName: nil,
+            orgName: nil,
+            planType: nil
+        )
+    }
+    
+    private func fetchUserInfo(cookies: [HTTPCookie]) async throws -> (email: String?, fullName: String?)? {
         guard let url = URL(string: "https://claude.ai/api/users/me") else {
-            completion(nil)
-            return
+            throw ClaudeAPIError.invalidURL("me")
         }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         setupRequest(&request, cookies: cookies)
         
-        session.dataTask(with: request) { data, response, error in
-            guard let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                completion(nil)
-                return
-            }
-            
-            let email = json["email_address"] as? String ?? json["email"] as? String
-            let name = json["full_name"] as? String
-            completion((email, name))
-        }.resume()
+        let (data, response) = try await session.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        
+        let email = json["email_address"] as? String ?? json["email"] as? String
+        let name = json["full_name"] as? String
+        return (email, name)
     }
     
-    private func fetchTier(orgId: String, cookies: [HTTPCookie], completion: @escaping (String?) -> Void) {
+    private func fetchTier(orgId: String, cookies: [HTTPCookie]) async throws -> String? {
         guard let url = URL(string: "https://claude.ai/api/bootstrap/\(orgId)/statsig") else {
-            completion(nil)
-            return
+            throw ClaudeAPIError.invalidURL("statsig")
         }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         setupRequest(&request, cookies: cookies)
         
-        session.dataTask(with: request) { data, response, error in
-            guard let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let user = json["user"] as? [String: Any],
-                  let custom = user["custom"] as? [String: Any] else {
-                completion(nil)
-                return
-            }
-            
-            let isPro = custom["isPro"] as? Bool ?? false
-            completion(isPro ? "Pro" : "Free")
-        }.resume()
+        let (data, response) = try await session.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let user = json["user"] as? [String: Any],
+              let custom = user["custom"] as? [String: Any] else {
+            return nil
+        }
+        
+        let isPro = custom["isPro"] as? Bool ?? false
+        return isPro ? "Pro" : "Free"
+    }
+    
+    private func validateResponse(_ response: URLResponse) throws {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClaudeAPIError.fetchFailed("network", nil)
+        }
+        
+        if httpResponse.statusCode == 401 {
+            throw ClaudeAPIError.unauthorized
+        }
+        
+        if httpResponse.statusCode != 200 {
+            throw ClaudeAPIError.badResponse(httpResponse.statusCode)
+        }
     }
     
     private func setupRequest(_ request: inout URLRequest, cookies: [HTTPCookie]) {

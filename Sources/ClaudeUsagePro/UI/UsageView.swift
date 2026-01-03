@@ -155,7 +155,7 @@ struct UsageView: View {
                             }
                             
                             HStack(spacing: 6) {
-                                Text(usage.sessionReset == "Ready" ? "Ready to start new session" : "Resets in: \(usage.sessionReset)")
+                                Text(usage.sessionResetDisplay == "Ready" ? "Ready to start new session" : "Resets in: \(usage.sessionResetDisplay)")
                                     .font(.system(.caption, design: .rounded))
                                     .foregroundColor(.secondary)
                                 Spacer()
