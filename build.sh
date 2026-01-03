@@ -31,6 +31,9 @@ echo "Copying executable and resources..."
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/"
 if [ -f "Resources/$APP_NAME.icns" ]; then
     cp "Resources/$APP_NAME.icns" "$RESOURCES_DIR/"
+else
+    echo "Error: Icon file 'Resources/$APP_NAME.icns' not found. Build failed." >&2
+    exit 1
 fi
 
 echo "Creating Info.plist..."
