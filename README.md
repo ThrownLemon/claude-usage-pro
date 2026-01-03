@@ -6,13 +6,13 @@
 
 **Claude Usage Pro** is a native macOS menu bar application that helps you monitor your Claude.ai usage across multiple accounts. Stay on top of your session and weekly usage limits with beautiful visual gauges that change color as you approach your limits.
 
-Whether you're managing a single Claude account or juggling multiple accounts across different organizations, Claude Usage Pro provides an at-a-glance view of your remaining capacity with session (5-hour) and weekly (7-day) usage tracking. The app features persistent cookie storage for seamless multi-account management and can automatically wake up sessions when usage resets, ensuring you never miss a beat.
+Whether you're managing a single Claude account or juggling multiple accounts across different organizations, Claude Usage Pro provides an at-a-glance view of your remaining capacity with session and weekly usage tracking. The app features persistent cookie storage for seamless multi-account management and can automatically wake up sessions when usage resets, ensuring you never miss a beat.
 
 ## Features
 
 - 🖥️ **Menu Bar Integration** – Quick access from your macOS menu bar without cluttering your dock
-- ⏱️ **Session Usage Tracking** – Monitor your 5-hour rolling session usage limit in real-time
-- 📊 **Weekly Usage Tracking** – Keep track of your 7-day rolling weekly usage limits
+- ⏱️ **Session Usage Tracking** – Monitor your rolling session usage limit in real-time
+- 📊 **Weekly Usage Tracking** – Keep track of your rolling weekly usage limits
 - 👥 **Multi-Account Support** – Manage and monitor multiple Claude accounts simultaneously
 - 🎨 **Visual Gauges with Color-Coded Thresholds** – Intuitive green/yellow/red indicators show your usage status at a glance
 - 🔔 **Auto-Ping/Wake-Up** – Automatically ping sessions when usage resets to 0% to keep them active
@@ -102,8 +102,9 @@ To make the app more accessible, you can:
 
    Once authenticated, you'll see two visual gauges for each account:
 
-   - **Session Usage (Circular Gauge)** – Shows your current 5-hour rolling session usage
-   - **Weekly Usage (Linear Bar)** – Displays your 7-day rolling weekly usage
+    - **Session Usage (Circular Gauge)** – Shows your current rolling session usage
+    - **Weekly Usage (Linear Bar)** – Displays your rolling weekly usage
+
 
    Both gauges update automatically based on your configured refresh interval (default: 5 minutes).
 
@@ -152,7 +153,7 @@ The auto-wake feature automatically pings your Claude.ai sessions when usage res
 
 **How to configure**: In the Settings panel, toggle the "Auto-Wake" switch to enable or disable this feature.
 
-**Use case**: If you want to ensure your sessions are always ready when usage resets (e.g., at the start of a new 5-hour period or 7-day cycle), enable this feature. This is particularly useful if you work with Claude during specific time windows and want seamless access when limits refresh.
+**Use case**: If you want to ensure your sessions are always ready when usage resets (e.g., at the start of a new session period or weekly cycle), enable this feature. This is particularly useful if you work with Claude during specific time windows and want seamless access when limits refresh.
 
 ### Account Management
 
@@ -210,4 +211,6 @@ See [CLAUDE.md](./CLAUDE.md) for more detailed build instructions and architectu
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+
+Copyright (c) 2025 ThrownLemon
