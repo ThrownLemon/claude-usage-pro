@@ -4,27 +4,30 @@ set -e
 
 APP_NAME="ClaudeUsagePro"
 BUNDLE_ID="com.sisyphus.ClaudeUsagePro"
+VERSION="1.0.0"
+BUILD_NUMBER=$(date +%Y%m%d%H%M)
 BUILD_DIR=".build/release"
 APP_BUNDLE="$APP_NAME.app"
 CONTENTS_DIR="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
+echo "Cleaning old artifacts..."
+rm -rf "$APP_BUNDLE"
+
 echo "Building $APP_NAME in release mode..."
 swift build -c release
 
-echo "Cleaning up old build artifacts..."
-rm -rf "$APP_BUNDLE"
+EXECUTABLE_PATH="$BUILD_DIR/$APP_NAME"
+if [ ! -f "$EXECUTABLE_PATH" ]; then
+    echo "Error: Build failed, executable not found at $EXECUTABLE_PATH" >&2
+    exit 1
+fi
 
 echo "Creating .app bundle structure..."
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 echo "Copying executable..."
-EXECUTABLE_PATH="$BUILD_DIR/$APP_NAME"
-if [ ! -f "$EXECUTABLE_PATH" ]; then
-    echo "Error: Build succeeded but executable not found at $EXECUTABLE_PATH" >&2
-    exit 1
-fi
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/"
 
 echo "Creating Info.plist..."
@@ -43,6 +46,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>$VERSION</string>
+    <key>CFBundleVersion</key>
+    <string>$BUILD_NUMBER</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>
