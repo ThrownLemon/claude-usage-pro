@@ -31,7 +31,7 @@ Whether you're managing a single Claude account or juggling multiple accounts ac
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/claude-usage-pro.git
+   git clone https://github.com/ThrownLemon/claude-usage-pro.git
    cd claude-usage-pro
    ```
 
@@ -170,7 +170,7 @@ Claude Usage Pro uses a lightweight, privacy-focused approach to track your Clau
 
 1. **Authentication via WebKit** – When you add an account, the app opens an embedded WebKit browser window where you log in to Claude.ai using your normal credentials. This ensures your login information is handled securely by Claude.ai's official authentication flow.
 
-2. **Session Cookie Persistence** – Once authenticated, the app captures and stores your session cookies locally on your Mac. These cookies are saved securely in your local user preferences, allowing the app to maintain persistent access to your account without requiring you to re-authenticate each time.
+2. **Session Cookie Persistence** – Once authenticated, the app captures and stores your session cookies locally on your Mac. These cookies are stored in your local user preferences (UserDefaults), allowing the app to maintain persistent access to your account without requiring you to re-authenticate each time.
 
 3. **Periodic Usage Fetching** – The app uses a background WebKit process to periodically fetch usage data from Claude.ai's internal APIs. This happens at your configured refresh interval (default: every 5 minutes) and retrieves your current session and weekly usage metrics.
 
@@ -184,9 +184,9 @@ Contributions are welcome! Whether you're fixing bugs, adding features, or impro
 
 ### How to Contribute
 
-1. **Check existing issues** – Browse the [Issues](https://github.com/yourusername/claude-usage-pro/issues) page to see if your bug or feature request already exists
+1. **Check existing issues** – Browse the [Issues](https://github.com/ThrownLemon/claude-usage-pro/issues) page to see if your bug or feature request already exists
 2. **Open a new issue** – If you've found a bug or have a feature idea, create a new issue to discuss it first
-3. **Submit a Pull Request** – Fork the repository, make your changes, and submit a [Pull Request](https://github.com/yourusername/claude-usage-pro/pulls)
+3. **Submit a Pull Request** – Fork the repository, make your changes, and submit a [Pull Request](https://github.com/ThrownLemon/claude-usage-pro/pulls)
 
 ### Development
 
@@ -211,4 +211,4 @@ See [CLAUDE.md](./CLAUDE.md) for more detailed build instructions and architectu
 
 ## License
 
-This project is currently unlicensed. Please contact the repository owner for licensing information.
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
