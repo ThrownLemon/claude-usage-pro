@@ -188,41 +188,7 @@ class AccountSession: ObservableObject, Identifiable {
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.isFetching = false
-
-                // Store previous values before updating (for threshold crossing detection)
-                // Skip on first update to prevent notifications on app launch with cached data
-                if self.hasReceivedFirstUpdate {
-                    self.previousSessionPercentage = self.account.usageData?.sessionPercentage
-                    self.previousWeeklyPercentage = self.account.usageData?.weeklyPercentage
-                } else {
-                    // First update - mark as received but don't set previous values
-                    // This ensures notifications only fire on actual crossings, not on app launch
-                    self.hasReceivedFirstUpdate = true
-                }
-
-                // Update internal account data
-                self.account.usageData = usageData
-
-                print("[DEBUG] UsageData \(self.account.name): session=\(Int(usageData.sessionPercentage * 100))% reset=\(usageData.sessionReset) weekly=\(Int(usageData.weeklyPercentage * 100))% reset=\(usageData.weeklyReset)")
-
-                // Threshold Detection & Notification Triggering
-                self.checkThresholdCrossingsAndNotify(usageData: usageData)
-
-                // Auto-Ping Logic
-                if usageData.sessionPercentage == 0, usageData.sessionReset == "Ready" {
-                    if UserDefaults.standard.bool(forKey: "autoWakeUp") {
-                        print("[DEBUG] Session: Auto-waking up \(self.account.name)...")
-                        self.ping()
-                    }
-                }
-
-                // Auto-update name if email is found and name is still default
-                if let email = usageData.email, self.account.name.starts(with: "Account ") {
-                    self.account.name = email
-                }
-
-                // Propagate changes if needed (observer will see @Published account change)
-                self.objectWillChange.send()
+                self.updateWithUsageData(usageData)
             }
         }
 
