@@ -27,8 +27,11 @@ fi
 echo "Creating .app bundle structure..."
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
-echo "Copying executable..."
+echo "Copying executable and resources..."
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/"
+if [ -f "Resources/$APP_NAME.icns" ]; then
+    cp "Resources/$APP_NAME.icns" "$RESOURCES_DIR/"
+fi
 
 echo "Creating Info.plist..."
 cat > "$CONTENTS_DIR/Info.plist" <<EOF
@@ -37,6 +40,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
+    <string>$APP_NAME</string>
+    <key>CFBundleIconFile</key>
     <string>$APP_NAME</string>
     <key>CFBundleIdentifier</key>
     <string>$BUNDLE_ID</string>
