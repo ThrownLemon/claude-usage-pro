@@ -24,3 +24,53 @@ Whether you're managing a single Claude account or juggling multiple accounts ac
 - **macOS 13 (Ventura) or later** – The app requires macOS 13+ to run
 - **Swift 5.9+** – Required for building from source
 - **Xcode 15+** (optional) – Recommended for development, but not required for building with Swift CLI
+
+## Installation
+
+### Building from Source
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/claude-usage-pro.git
+   cd claude-usage-pro
+   ```
+
+2. **Build the application**
+
+   For a release build (recommended):
+   ```bash
+   swift build -c release
+   ```
+
+   Or for a debug build:
+   ```bash
+   swift build
+   ```
+
+3. **Locate the built executable**
+
+   After building, the executable will be located at:
+   - **Release build**: `.build/release/ClaudeUsagePro`
+   - **Debug build**: `.build/debug/ClaudeUsagePro`
+
+4. **Run the application**
+   ```bash
+   .build/release/ClaudeUsagePro
+   ```
+
+### Optional: Install for Convenient Access
+
+To make the app more accessible, you can:
+
+- **Copy to Applications folder** (recommended):
+  ```bash
+  cp .build/release/ClaudeUsagePro /Applications/
+  ```
+
+  Then launch it from Spotlight or your Applications folder.
+
+- **Add to Login Items** for auto-start on login:
+  1. Open **System Settings** → **General** → **Login Items**
+  2. Click the **+** button under "Open at Login"
+  3. Navigate to and select `ClaudeUsagePro` (from `/Applications` or your build directory)
+  4. The app will now launch automatically when you log in
