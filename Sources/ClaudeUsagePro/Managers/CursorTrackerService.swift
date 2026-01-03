@@ -57,6 +57,8 @@ class CursorTrackerService {
     private let cursorAPIBase = "https://api2.cursor.sh"
     private let stateDBPath = "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
     
+    init() {}
+    
     func isInstalled() -> Bool {
         let path = NSString(string: "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb").expandingTildeInPath
         return FileManager.default.fileExists(atPath: path)
