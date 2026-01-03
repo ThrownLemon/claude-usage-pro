@@ -15,6 +15,7 @@ class AccountSession: ObservableObject, Identifiable {
     private var hasReceivedFirstUpdate: Bool = false
 
     private var tracker: TrackerService?
+    private var apiService: ClaudeAPIService
     private var timer: Timer?
     var onRefreshTick: (() -> Void)?
     
@@ -22,6 +23,7 @@ class AccountSession: ObservableObject, Identifiable {
         self.id = account.id
         self.account = account
         self.tracker = TrackerService()
+        self.apiService = ClaudeAPIService()
         
         setupTracker()
     }
@@ -48,18 +50,22 @@ class AccountSession: ObservableObject, Identifiable {
         }
     }
     
-    func ping() {
+    func ping(isAuto: Bool = false) {
+        if isAuto && !UserDefaults.standard.bool(forKey: "autoWakeUp") {
+            print("[DEBUG] Session: Auto-ping cancelled (setting disabled).")
+            return
+        }
+
         guard let usageData = account.usageData,
               usageData.sessionPercentage == 0,
               usageData.sessionReset == "Ready" else {
             print("[DEBUG] Session: Ping skipped (session not ready).")
             return
         }
-        print("[DEBUG] Session: Manual ping requested.")
+        print("[DEBUG] Session: \(isAuto ? "Auto" : "Manual") ping requested.")
         tracker?.onPingComplete = { [weak self] success in
             if success {
                 print("[DEBUG] Session: Ping finished, refreshing data...")
-                // Wait a moment for Claude to process, then refresh
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     self?.fetchNow()
                 }
@@ -73,7 +79,49 @@ class AccountSession: ObservableObject, Identifiable {
     func fetchNow() {
         guard !isFetching else { return }
         isFetching = true
-        tracker?.fetchUsage(cookies: account.cookies)
+        
+        apiService.fetchUsage(cookies: account.cookies) { [weak self] result in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isFetching = false
+                switch result {
+                case .success(let usageData):
+                    self.updateWithUsageData(usageData)
+                case .failure(let error):
+                    print("[ERROR] Session API: Fetch failed for \(self.account.name): \(error). Falling back to WebKit...")
+                    self.isFetching = true
+                    self.tracker?.fetchUsage(cookies: self.account.cookies)
+                }
+            }
+        }
+    }
+    
+    private func updateWithUsageData(_ usageData: UsageData) {
+        if self.hasReceivedFirstUpdate {
+            self.previousSessionPercentage = self.account.usageData?.sessionPercentage
+            self.previousWeeklyPercentage = self.account.usageData?.weeklyPercentage
+        } else {
+            self.hasReceivedFirstUpdate = true
+        }
+
+        self.account.usageData = usageData
+
+        print("[DEBUG] UsageData \(self.account.name): session=\(Int(usageData.sessionPercentage * 100))% reset=\(usageData.sessionReset) weekly=\(Int(usageData.weeklyPercentage * 100))% reset=\(usageData.weeklyReset)")
+
+        self.checkThresholdCrossingsAndNotify(usageData: usageData)
+
+        if self.didTransitionToReady(previousPercentage: self.previousSessionPercentage, currentPercentage: usageData.sessionPercentage, currentReset: usageData.sessionReset) {
+            if UserDefaults.standard.bool(forKey: "autoWakeUp") {
+                print("[DEBUG] Session: Auto-waking up \(self.account.name)...")
+                self.ping(isAuto: true)
+            }
+        }
+
+        if let email = usageData.email, self.account.name.starts(with: "Account ") {
+            self.account.name = email
+        }
+
+        self.objectWillChange.send()
     }
     
     // MARK: - Threshold Detection
