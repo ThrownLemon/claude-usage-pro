@@ -125,3 +125,41 @@ If you work with multiple Claude.ai accounts across different organizations:
 2. Each account will appear in the interface with its own usage gauges
 3. Switch between accounts to view their individual usage metrics
 4. Remove accounts by accessing the Settings panel (gear icon)
+
+## Settings
+
+Claude Usage Pro offers several configurable options to customize your monitoring experience. Access the Settings panel by clicking the **gear icon** (⚙️) in the app interface.
+
+### Refresh Interval
+
+The refresh interval controls how frequently the app fetches updated usage data from Claude.ai.
+
+- **Default**: 5 minutes (300 seconds)
+- **Purpose**: Balance between real-time accuracy and system performance
+- **Customization**: Adjust the interval based on your needs:
+  - **Shorter intervals** (e.g., 2-3 minutes) – Get more frequent updates if you're actively monitoring usage
+  - **Longer intervals** (e.g., 10-15 minutes) – Reduce system resources and network requests if you only need periodic checks
+
+**How to configure**: In the Settings panel, use the refresh interval picker to select your preferred update frequency.
+
+### Auto-Wake / Auto-Ping
+
+The auto-wake feature automatically pings your Claude.ai sessions when usage resets to 0%, helping keep your sessions active.
+
+- **Default**: Configurable (off by default)
+- **Purpose**: Automatically "wake up" sessions when your usage limits reset, ensuring you can resume work immediately
+- **Behavior**: When your session or weekly usage returns to 0% (indicating a reset), the app will automatically send a ping to Claude.ai to refresh the session
+
+**How to configure**: In the Settings panel, toggle the "Auto-Wake" switch to enable or disable this feature.
+
+**Use case**: If you want to ensure your sessions are always ready when usage resets (e.g., at the start of a new 5-hour period or 7-day cycle), enable this feature. This is particularly useful if you work with Claude during specific time windows and want seamless access when limits refresh.
+
+### Account Management
+
+The Settings panel also provides account management capabilities:
+
+- **Add Accounts**: Click the **"+"** button to authenticate and add new Claude.ai accounts
+- **Remove Accounts**: In the Settings panel, you can remove accounts you no longer need to monitor
+- **View All Accounts**: See all your configured accounts in one place with their current usage status
+
+**Cookie Storage**: All account credentials are stored locally on your Mac using secure cookie persistence. Your authentication data never leaves your device.
