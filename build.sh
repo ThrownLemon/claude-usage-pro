@@ -27,8 +27,15 @@ fi
 echo "Creating .app bundle structure..."
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
-echo "Copying executable..."
+echo "Copying executable and resources..."
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/"
+
+ICON_PATH="Resources/$APP_NAME.icns"
+if [ ! -f "$ICON_PATH" ]; then
+    echo "Error: App icon not found at $ICON_PATH" >&2
+    exit 1
+fi
+cp "$ICON_PATH" "$RESOURCES_DIR/"
 
 echo "Creating Info.plist..."
 cat > "$CONTENTS_DIR/Info.plist" <<EOF
@@ -37,6 +44,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
+    <string>$APP_NAME</string>
+    <key>CFBundleIconFile</key>
     <string>$APP_NAME</string>
     <key>CFBundleIdentifier</key>
     <string>$BUNDLE_ID</string>
