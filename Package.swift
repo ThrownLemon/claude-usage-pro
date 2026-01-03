@@ -14,7 +14,10 @@ let package = Package(
         .executableTarget(
             name: "ClaudeUsagePro",
             dependencies: [],
-            path: "Sources/ClaudeUsagePro"
+            path: "Sources/ClaudeUsagePro",
+            linkerSettings: [
+                .linkedLibrary("sqlite3")
+            ]
         )
     ]
 )

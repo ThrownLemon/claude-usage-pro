@@ -281,7 +281,23 @@ class AppState: ObservableObject {
             id: UUID(),
             name: "Account \(sessions.count + 1)",
             cookies: cookies,
-            usageData: nil
+            usageData: nil,
+            type: .claude
+        )
+        let session = AccountSession(account: newAccount)
+        sessions.append(session)
+        saveAccounts()
+        subscribeToSessionChanges(session)
+        session.startMonitoring()
+    }
+
+    func addCursorAccount() {
+        let newAccount = ClaudeAccount(
+            id: UUID(),
+            name: "Cursor Monitoring",
+            cookies: [],
+            usageData: nil,
+            type: .cursor
         )
         let session = AccountSession(account: newAccount)
         sessions.append(session)

@@ -110,12 +110,19 @@ struct UsageView: View {
                         
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(account.name)
-                                    .font(.system(.headline, design: .rounded).weight(.semibold))
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                    .layoutPriority(1)
-                                    .padding(.bottom, 6)
+                                HStack(spacing: 4) {
+                                    if account.type == .cursor {
+                                        Image(systemName: "cpu")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Text(account.name)
+                                        .font(.system(.headline, design: .rounded).weight(.semibold))
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                }
+                                .layoutPriority(1)
+                                .padding(.bottom, 6)
                                 
                                 Spacer()
                                 
@@ -131,7 +138,7 @@ struct UsageView: View {
                             }
                             
                             HStack(spacing: 6) {
-                                Text("Session Usage")
+                                Text(account.type == .cursor ? "Request Usage" : "Session Usage")
                                     .font(.system(.caption, design: .rounded).weight(.semibold))
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
@@ -140,7 +147,7 @@ struct UsageView: View {
                                 
                                 Spacer()
                                 
-                                if usage.sessionReset == "Ready" {
+                                if account.type == .claude && usage.sessionReset == "Ready" {
                                     Button(action: { onPing?() }) {
                                         Image(systemName: "play.circle.fill")
                                             .font(.system(size: 14))
@@ -155,7 +162,7 @@ struct UsageView: View {
                             }
                             
                             HStack(spacing: 6) {
-                                Text(usage.sessionReset == "Ready" ? "Ready to start new session" : "Resets in: \(usage.sessionReset)")
+                                Text(usage.sessionResetDisplay)
                                     .font(.system(.caption, design: .rounded))
                                     .foregroundColor(.secondary)
                                 Spacer()

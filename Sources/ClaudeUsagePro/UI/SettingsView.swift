@@ -113,14 +113,29 @@ struct SettingsView: View {
 
                 // Accounts Section
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Accounts (\(appState.sessions.count))")
-                        .font(.headline)
+                    HStack {
+                        Text("Accounts (\(appState.sessions.count))")
+                            .font(.headline)
+                        Spacer()
+                        Button(action: {
+                            appState.addCursorAccount()
+                        }) {
+                            Label("Add Cursor", systemImage: "plus.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                     
                     ForEach(appState.sessions) { session in
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(session.account.name)
-                                    .font(.body)
+                                HStack {
+                                    Image(systemName: session.account.type == .cursor ? "cpu" : "sparkles")
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                    Text(session.account.name)
+                                        .font(.body)
+                                }
                                 if let plan = session.account.usageData?.planType {
                                     Text(plan.replacingOccurrences(of: "_", with: " ").capitalized)
                                         .font(.caption)

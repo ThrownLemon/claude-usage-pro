@@ -400,6 +400,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                     let data = UsageData(
                         sessionPercentage: sessionPct,
                         sessionReset: sessionReset,
+                        sessionResetDisplay: sessionReset,
                         weeklyPercentage: weeklyPct,
                         weeklyReset: weeklyReset,
                         tier: tier,
