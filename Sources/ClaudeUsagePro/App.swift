@@ -560,7 +560,7 @@ class AppState {
         session.startMonitoring()
     }
 
-    func validateGLMToken(_ token: String) async throws -> Bool {
+    static func validateGLMToken(_ token: String) async throws -> Bool {
         let tracker = GLMTrackerService()
         let info = try await tracker.fetchGLMUsage(apiToken: token)
         return info.sessionLimit > 0 || info.monthlyLimit > 0 || info.sessionPercentage >= 0
