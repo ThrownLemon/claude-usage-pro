@@ -231,7 +231,7 @@ struct AddAccountView: View {
         errorMessage = nil
 
         do {
-            let isValid = try await AppState().validateGLMToken(token)
+            let isValid = try await AppState.validateGLMToken(token)
             if isValid {
                 onGLM(token)
                 glmTokenInput = ""
