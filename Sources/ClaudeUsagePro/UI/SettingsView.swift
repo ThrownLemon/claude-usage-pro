@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// Displays and manages application settings including refresh intervals,
+/// notification preferences, account management, and developer options.
 struct SettingsView: View {
     @AppStorage("refreshInterval") private var refreshInterval: Double = 300 // Default 5 mins
     @AppStorage("autoWakeUp") private var autoWakeUp: Bool = false
@@ -184,15 +186,53 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    Button(role: .destructive) {
-                        showingResetConfirmation = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "trash")
-                            Text("Reset All Data")
+                    if showingResetConfirmation {
+                        // Inline confirmation UI
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Are you sure?")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.red)
+
+                            Text("This will delete all accounts, credentials, and settings. This action cannot be undone.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            HStack(spacing: 8) {
+                                Button("Cancel") {
+                                    withAnimation {
+                                        showingResetConfirmation = false
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+
+                                Button("Reset") {
+                                    appState.resetAllData()
+                                    showingResetConfirmation = false
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.red)
+                                .controlSize(.small)
+                            }
                         }
+                        .padding(12)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(8)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    } else {
+                        Button(role: .destructive) {
+                            withAnimation {
+                                showingResetConfirmation = true
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "trash")
+                                Text("Reset All Data")
+                            }
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
                 .padding()
                 .background(Material.regular)
@@ -203,14 +243,6 @@ struct SettingsView: View {
         .onAppear {
             Log.debug(Log.Category.settings, "SettingsView appeared")
         }
-        .alert("Reset All Data?", isPresented: $showingResetConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Reset", role: .destructive) {
-                appState.resetAllData()
-            }
-        } message: {
-            Text("This will delete all accounts, credentials, and settings. This action cannot be undone.")
-        }
     }
 
     @State private var showingResetConfirmation = false
@@ -218,9 +250,13 @@ struct SettingsView: View {
 
 // MARK: - Threshold Slider Component
 
+/// A slider component for configuring notification threshold values.
 struct ThresholdSlider: View {
+    /// Label displayed next to the slider
     let label: String
+    /// The current threshold value (0.0 to 1.0)
     @Binding var value: Double
+    /// The allowed range for the slider
     let range: ClosedRange<Double>
 
     var body: some View {

@@ -4,16 +4,19 @@ import SwiftUI
 import Combine
 import os
 
+/// Manages authentication flow for Claude.ai accounts.
+/// Opens a WebKit browser window for login and captures session cookies on success.
 class AuthManager: NSObject, ObservableObject, WKNavigationDelegate {
     private let category = Log.Category.auth
+    /// Whether the login window is currently displayed
     @Published var isLoginWindowOpen = false
     private var loginWindow: NSWindow?
     private var webView: WKWebView?
     private var windowCloseObserver: NSObjectProtocol?
-    
-    // Callback when login is successful (returns cookies and potentially org info)
+
+    /// Called when login succeeds with the captured session cookies
     var onLoginSuccess: (([HTTPCookie]) -> Void)?
-    
+
     override init() {
         super.init()
     }

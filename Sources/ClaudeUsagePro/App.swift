@@ -1,6 +1,8 @@
 import SwiftUI
 import Combine
 
+/// The main entry point for the Claude Usage Pro application.
+/// Creates a menu bar app that displays usage statistics for Claude accounts.
 @main
 struct ClaudeUsageProApp: App {
     @State private var appState = AppState()
@@ -17,7 +19,9 @@ struct ClaudeUsageProApp: App {
     }
 }
 
+/// Displays usage percentages in the menu bar label.
 struct MenuBarUsageView: View {
+    /// The app state containing all account sessions
     var appState: AppState
 
     var body: some View {
@@ -43,11 +47,17 @@ struct MenuBarUsageView: View {
     }
 }
 
+/// A styled button for selecting an account type during account creation.
 struct AccountTypeButton: View {
+    /// The button's primary label
     let title: String
+    /// Secondary description text
     let subtitle: String
+    /// SF Symbol name for the icon
     let icon: String
+    /// Accent color for hover state
     let color: Color
+    /// Action to perform when tapped
     let action: () -> Void
 
     @State private var isHovering = false
@@ -100,18 +110,27 @@ struct AccountTypeButton: View {
     }
 }
 
+/// Steps in the add account flow
 enum AddAccountStep {
+    /// Showing the account type selection menu
     case menu
+    /// Entering GLM API token
     case glmToken
 }
- 
+
 // MARK: - Add Account View
- 
+
+/// View for adding new accounts with multi-step flow.
 struct AddAccountView: View {
+    /// Current step in the add account flow
     @Binding var step: AddAccountStep
+    /// Input field for GLM API token
     @Binding var glmTokenInput: String
+    /// Callback when Claude account is selected
     let onClaude: () -> Void
+    /// Callback when Cursor account is selected
     let onCursor: () -> Void
+    /// Callback when GLM account is confirmed with token
     let onGLM: (String) -> Void
 
     @State private var isValidating = false
@@ -247,8 +266,12 @@ struct AddAccountView: View {
     }
 }
 
+/// The main content view displayed in the menu bar popover.
+/// Shows account usage cards, settings, or add account flow based on state.
 struct ContentView: View {
+    /// The global app state
     var appState: AppState
+    /// The authentication manager for handling login
     @ObservedObject var authManager: AuthManager
 
     @State private var showSettings = false
@@ -394,11 +417,15 @@ struct ContentView: View {
 
 
 
-// Custom Button Component for reliable hover
+/// A button with an SF Symbol icon that responds to hover state.
 struct HoverIconButton: View {
+    /// SF Symbol name for the icon
     let image: String
+    /// Tooltip text shown on hover
     let helpText: String
+    /// Color to use when hovered
     var color: Color = .primary
+    /// Action to perform when tapped
     let action: () -> Void
     
     @State private var isHovering = false
@@ -429,9 +456,10 @@ struct HoverIconButton: View {
     }
 }
 
+/// A styled quit button that terminates the application.
 struct QuitButton: View {
     @State private var isHovering = false
-    
+
     var body: some View {
         Button(action: {
             NSApplication.shared.terminate(nil)
@@ -460,10 +488,12 @@ struct QuitButton: View {
     }
 }
 
+/// A card with a dashed border for adding new accounts.
 struct AddAccountCardView: View {
+    /// Action to perform when the card is tapped
     let action: () -> Void
     @State private var isHovering = false
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
@@ -497,11 +527,16 @@ struct AddAccountCardView: View {
     }
 }
 
+/// Central application state managing all account sessions and persistence.
+/// Handles account lifecycle, session monitoring, and data storage.
 @Observable
 @MainActor
 class AppState {
+    /// All active account monitoring sessions
     var sessions: [AccountSession] = []
+    /// When the next automatic refresh will occur
     var nextRefresh: Date = Date()
+    /// Trigger for refreshing the menu bar icon
     var iconRefreshTrigger = UUID()
 
     private let defaults = UserDefaults.standard
@@ -511,6 +546,8 @@ class AppState {
         loadAccounts()
     }
     
+    /// Adds a new Claude account with the given authentication cookies.
+    /// - Parameter cookies: Authentication cookies from the login session
     func addAccount(cookies: [HTTPCookie]) {
         let newAccount = ClaudeAccount(
             id: UUID(),
@@ -529,6 +566,7 @@ class AppState {
         session.startMonitoring()
     }
 
+    /// Adds a new Cursor IDE monitoring account.
     func addCursorAccount() {
         let newAccount = ClaudeAccount(
             id: UUID(),
@@ -544,6 +582,8 @@ class AppState {
         session.startMonitoring()
     }
 
+    /// Adds a new GLM Coding Plan account with the given API token.
+    /// - Parameter apiToken: The GLM API token for authentication
     func addGLMAccount(apiToken: String) {
         let newAccount = ClaudeAccount(
             id: UUID(),
@@ -561,6 +601,10 @@ class AppState {
         session.startMonitoring()
     }
 
+    /// Validates a GLM API token by attempting to fetch usage data.
+    /// - Parameter token: The API token to validate
+    /// - Returns: True if the token is valid and can fetch usage data
+    /// - Throws: GLMTrackerError if the validation fails
     static func validateGLMToken(_ token: String) async throws -> Bool {
         let tracker = GLMTrackerService()
         let info = try await tracker.fetchGLMUsage(apiToken: token)
@@ -577,6 +621,8 @@ class AppState {
         }
     }
     
+    /// Removes an account and its associated credentials.
+    /// - Parameter id: The UUID of the account to remove
     func removeAccount(id: UUID) {
         // Find the account and delete its credentials from Keychain
         if let session = sessions.first(where: { $0.account.id == id }) {
@@ -586,6 +632,7 @@ class AppState {
         saveAccounts()
     }
     
+    /// Triggers an immediate refresh of all account usage data.
     func refreshAll() {
         let nextInterval = refreshIntervalSeconds()
         Log.debug(Log.Category.appState, "Refreshing all accounts... Next in \(Int(nextInterval))s")
@@ -595,6 +642,7 @@ class AppState {
         nextRefresh = Date().addingTimeInterval(nextInterval)
     }
     
+    /// Reschedules refresh timers for all sessions based on current settings.
     func rescheduleAllSessions() {
         for session in sessions {
             session.scheduleRefreshTimer()
@@ -602,6 +650,8 @@ class AppState {
         nextRefresh = Date().addingTimeInterval(refreshIntervalSeconds())
     }
     
+    /// Returns the configured refresh interval in seconds.
+    /// - Returns: The refresh interval, or default if not configured
     func refreshIntervalSeconds() -> TimeInterval {
         let interval = defaults.double(forKey: Constants.UserDefaultsKeys.refreshInterval)
         return interval > 0 ? interval : Constants.Timeouts.defaultRefreshInterval
@@ -698,6 +748,7 @@ class AppState {
         }
     }
 
+    /// Computes the current menu bar icon state based on account statuses.
     var menuBarIconState: MenuBarIconState {
         guard !sessions.isEmpty else { return .noAccounts }
 
@@ -744,19 +795,41 @@ class AppState {
         // Clear Keychain (credentials)
         KeychainService.deleteAll()
 
-        // Clear UserDefaults for this app
-        if let bundleId = Bundle.main.bundleIdentifier {
-            defaults.removePersistentDomain(forName: bundleId)
-            defaults.synchronize()
+        // Clear UserDefaults - explicitly remove all known keys
+        // (removePersistentDomain is unreliable with @AppStorage)
+        let keysToRemove = [
+            // Account data
+            Constants.UserDefaultsKeys.savedAccounts,
+            Constants.UserDefaultsKeys.keychainMigrationComplete,
+            // Settings
+            Constants.UserDefaultsKeys.refreshInterval,
+            Constants.UserDefaultsKeys.autoWakeUp,
+            Constants.UserDefaultsKeys.debugModeEnabled,
+            // Notification settings
+            NotificationSettings.enabledKey,
+            NotificationSettings.sessionReadyEnabledKey,
+            NotificationSettings.sessionThreshold1EnabledKey,
+            NotificationSettings.sessionThreshold2EnabledKey,
+            NotificationSettings.weeklyThreshold1EnabledKey,
+            NotificationSettings.weeklyThreshold2EnabledKey,
+            NotificationSettings.threshold1ValueKey,
+            NotificationSettings.threshold2ValueKey,
+        ]
+
+        for key in keysToRemove {
+            defaults.removeObject(forKey: key)
         }
+        defaults.synchronize()
 
         Log.info(Log.Category.app, "All app data has been reset")
     }
 }
 
+/// Displays a countdown timer to the next automatic refresh.
 struct CountdownView: View {
+    /// The target date/time for the countdown
     let target: Date
-    
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
             let diff = target.timeIntervalSince(context.date)
@@ -779,15 +852,24 @@ struct CountdownView: View {
     }
 }
 
+/// Represents the visual state of the menu bar icon based on usage.
 enum MenuBarIconState {
+    /// No accounts configured
     case noAccounts
+    /// Data is being fetched
     case loading
+    /// No usage data available
     case noData
+    /// Session is ready to use (0% usage)
     case ready
+    /// Usage below 50%
     case lowUsage
+    /// Usage between 50-75%
     case mediumUsage
+    /// Usage above 75%
     case highUsage
 
+    /// The SF Symbol name for this state
     var iconName: String {
         switch self {
         case .noAccounts: return "xmark.circle"
@@ -798,6 +880,7 @@ enum MenuBarIconState {
         }
     }
 
+    /// The color associated with this state
     var iconColor: Color {
         switch self {
         case .noAccounts: return .secondary
@@ -811,7 +894,9 @@ enum MenuBarIconState {
     }
 }
 
+/// Displays a single account session's usage data in a row format.
 struct AccountRowSessionView: View {
+    /// The session to display
     var session: AccountSession
 
     var body: some View {

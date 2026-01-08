@@ -24,10 +24,11 @@ class AccountSession: Identifiable {
     private var tracker: TrackerService?
     private var cursorTracker: CursorTrackerService?
     private var glmTracker: GLMTrackerService?
-    // Marked nonisolated(unsafe) to allow cleanup in deinit (which is nonisolated).
+    // These properties need to be accessible from deinit (which is nonisolated).
     // Timer.invalidate() and Task.cancel() are thread-safe operations.
-    private nonisolated(unsafe) var timer: Timer?
-    private nonisolated(unsafe) var fetchTask: Task<Void, Never>?
+    // Using @ObservationIgnored to prevent the @Observable macro from transforming them.
+    @ObservationIgnored private nonisolated(unsafe) var timer: Timer?
+    @ObservationIgnored private nonisolated(unsafe) var fetchTask: Task<Void, Never>?
     var onRefreshTick: (() -> Void)?
 
     /// Creates a new session for monitoring an account's usage.

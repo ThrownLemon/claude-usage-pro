@@ -3,17 +3,25 @@ import WebKit
 import Combine
 import os
 
+/// Service for fetching Claude.ai usage data using a hidden WKWebView.
+/// Injects JavaScript to call Claude's internal APIs and parse responses.
 class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
     private let category = Log.Category.tracker
+    /// The hidden WebView used for API calls
     private var webView: WKWebView?
     private var currentTask: AnyCancellable?
+    /// Stored cookies for ping operations
     private var storedCookies: [HTTPCookie] = []
+    /// Whether a ping operation is pending
     private var pendingPing = false
+    /// Work item for ping timeout handling
     private var pingTimeoutWorkItem: DispatchWorkItem?
 
-    // Result callback
+    /// Called when usage data is successfully fetched
     var onUpdate: ((UsageData) -> Void)?
+    /// Called when an error occurs during fetching
     var onError: ((Error) -> Void)?
+    /// Called when a ping operation completes (with success status)
     var onPingComplete: ((Bool) -> Void)?
 
     deinit {
@@ -35,7 +43,8 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         webView?.configuration.userContentController.removeAllUserScripts()
     }
     
-    // Ping session by loading page with cookies and sending a message
+    /// Pings the session to wake it up and start a new usage window.
+    /// Creates a temporary chat conversation, sends a minimal message, then deletes it.
     func pingSession() {
         Log.debug(category, "Pinging session...")
         guard !storedCookies.isEmpty else {
@@ -82,6 +91,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         }
     }
     
+    /// Executes the JavaScript ping script that creates a temporary conversation.
     private func executePingScript() {
         let script = """
             let result = { error: 'not started' };
@@ -262,6 +272,8 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         }
     }
     
+    /// Fetches usage data by loading Claude.ai in a hidden WebView.
+    /// - Parameter cookies: Authentication cookies from the login session
     func fetchUsage(cookies: [HTTPCookie]) {
         Log.debug(category, "Starting fetch for \(cookies.count) cookies")
         self.storedCookies = cookies // Store for later ping use
@@ -284,6 +296,8 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         }
     }
     
+    /// Creates and starts the hidden WebView browser for fetching usage data.
+    /// - Parameter config: The WebView configuration with injected cookies
     private func startHiddenBrowser(config: WKWebViewConfiguration) {
         // Clean up existing webView before creating a new one
         cleanupExistingWebView()
@@ -297,6 +311,8 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         webView.load(URLRequest(url: url))
     }
 
+    /// Called when the WebView finishes loading a page.
+    /// Injects JavaScript to fetch usage data or execute ping.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Log.debug(category, "Page finished loading, injecting JS...")
         
@@ -552,7 +568,11 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         }
     }
     
-    // Helpers for date formatting
+    // MARK: - Date Formatting Helpers
+
+    /// Formats an ISO date string into a human-readable time remaining string.
+    /// - Parameter isoDate: ISO 8601 formatted date string
+    /// - Returns: Formatted string like "3h 21m" or "Ready" if time has passed
     private func formatResetTime(isoDate: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -567,13 +587,16 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         return "\(hours)h \(mins)m"
     }
     
+    /// Formats an ISO date string into a human-readable date display.
+    /// - Parameter isoDate: ISO 8601 formatted date string
+    /// - Returns: Formatted string like "Thu 8:59 PM"
     private func formatResetDate(isoDate: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let date = formatter.date(from: isoDate) else { return isoDate }
-        
+
         let displayFormatter = DateFormatter()
-        displayFormatter.dateFormat = "E h:mm a" // e.g., Thu 8:59 PM
+        displayFormatter.dateFormat = "E h:mm a"
         return displayFormatter.string(from: date)
     }
 }

@@ -1,12 +1,26 @@
 import SwiftUI
 
+/// Displays usage statistics for an account with circular and linear gauges.
+/// Shows session and weekly usage percentages with color-coded thresholds.
 struct UsageView: View {
+    /// The account to display usage for
     let account: ClaudeAccount
+    /// Whether usage data is currently being fetched
     let isFetching: Bool
+    /// The most recent error, if any
     var lastError: Error?
+    /// Callback to trigger a session ping
     var onPing: (() -> Void)?
+    /// Callback to retry fetching after an error
     var onRetry: (() -> Void)?
 
+    /// Creates a new usage view for an account.
+    /// - Parameters:
+    ///   - account: The account to display
+    ///   - isFetching: Whether a fetch is in progress
+    ///   - lastError: The most recent error, if any
+    ///   - onPing: Optional callback for ping actions
+    ///   - onRetry: Optional callback for retry actions
     init(account: ClaudeAccount, isFetching: Bool, lastError: Error? = nil, onPing: (() -> Void)? = nil, onRetry: (() -> Void)? = nil) {
         self.account = account
         self.isFetching = isFetching
@@ -21,6 +35,7 @@ struct UsageView: View {
     
     private let gaugeLineThickness: CGFloat = 5
     
+    /// Returns the color associated with the account's tier
     var tierColor: Color {
         let tier = account.usageData?.tier.lowercased() ?? ""
         if tier.contains("max") { return .yellow }
@@ -29,7 +44,9 @@ struct UsageView: View {
         return .blue // Default/Pro
     }
     
-    // Dynamic color based on usage percentage: green -> yellow -> red (for session)
+    /// Returns a color based on session usage percentage (green → yellow → red).
+    /// - Parameter percentage: Usage percentage from 0.0 to 1.0
+    /// - Returns: Color representing usage severity
     func sessionColor(for percentage: Double) -> Color {
         if percentage < 0.5 {
             return .green
@@ -40,7 +57,9 @@ struct UsageView: View {
         }
     }
     
-    // Session gauge gradient
+    /// Returns a gradient for the session gauge based on usage level.
+    /// - Parameter percentage: Usage percentage from 0.0 to 1.0
+    /// - Returns: Gradient transitioning between appropriate colors
     func sessionGradient(for percentage: Double) -> Gradient {
         if percentage < 0.5 {
             return Gradient(colors: [.green, .yellow])
@@ -51,11 +70,18 @@ struct UsageView: View {
         }
     }
     
+    /// Formats a percentage value for display.
+    /// - Parameter percentage: Value from 0.0 to 1.0
+    /// - Returns: Formatted string like "75%"
     func percentageText(for percentage: Double) -> String {
         let value = Int((percentage * 100).rounded())
         return "\(value)%"
     }
     
+    /// Returns a color for the weekly gauge based on usage percentage.
+    /// Uses a gradient from green to red based on 10% increments.
+    /// - Parameter percentage: Usage percentage from 0.0 to 1.0
+    /// - Returns: Color representing usage severity
     func weeklyColor(for percentage: Double) -> Color {
         let hues: [Double] = [
             0.33,
@@ -235,6 +261,7 @@ struct UsageView: View {
     }
 }
 
+/// Displays an animated skeleton loading placeholder for usage cards.
 struct LoadingCardView: View {
     @State private var isAnimating = false
 
@@ -294,9 +321,13 @@ struct LoadingCardView: View {
     }
 }
 
+/// Displays an error state with retry button when usage fetch fails.
 struct ErrorCardView: View {
+    /// The error that occurred
     let error: Error
+    /// The name of the account that failed
     let accountName: String
+    /// Optional callback to retry the failed operation
     var onRetry: (() -> Void)?
 
     @State private var isHovering = false
