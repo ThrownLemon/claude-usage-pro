@@ -174,13 +174,46 @@ struct SettingsView: View {
                 .padding()
                 .background(Material.regular)
                 .cornerRadius(8)
+
+                // Data Management Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Data Management")
+                        .font(.headline)
+
+                    Text("Clear all stored data including accounts, credentials, and settings. The app will restart in a fresh state.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Button(role: .destructive) {
+                        showingResetConfirmation = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("Reset All Data")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+                .background(Material.regular)
+                .cornerRadius(8)
             }
             .padding(20)
         }
         .onAppear {
             Log.debug(Log.Category.settings, "SettingsView appeared")
         }
+        .alert("Reset All Data?", isPresented: $showingResetConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Reset", role: .destructive) {
+                appState.resetAllData()
+            }
+        } message: {
+            Text("This will delete all accounts, credentials, and settings. This action cannot be undone.")
+        }
     }
+
+    @State private var showingResetConfirmation = false
 }
 
 // MARK: - Threshold Slider Component

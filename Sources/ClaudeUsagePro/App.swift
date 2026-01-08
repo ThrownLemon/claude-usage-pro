@@ -727,6 +727,31 @@ class AppState {
             return .highUsage
         }
     }
+
+    /// Reset all app data to factory state
+    /// Clears UserDefaults, Keychain, and in-memory sessions
+    func resetAllData() {
+        Log.info(Log.Category.app, "Resetting all app data...")
+
+        // Stop all session monitors
+        for session in sessions {
+            session.stopMonitoring()
+        }
+
+        // Clear in-memory sessions
+        sessions.removeAll()
+
+        // Clear Keychain (credentials)
+        KeychainService.deleteAll()
+
+        // Clear UserDefaults for this app
+        if let bundleId = Bundle.main.bundleIdentifier {
+            defaults.removePersistentDomain(forName: bundleId)
+            defaults.synchronize()
+        }
+
+        Log.info(Log.Category.app, "All app data has been reset")
+    }
 }
 
 struct CountdownView: View {

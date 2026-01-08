@@ -167,4 +167,29 @@ struct KeychainService {
     static func apiTokenKey(for accountId: UUID) -> String {
         return "apiToken_\(accountId.uuidString)"
     }
+
+    /// Delete all Keychain items for this app's service
+    /// - Returns: The number of items deleted, or -1 on error
+    @discardableResult
+    static func deleteAll() -> Int {
+        // Query to find all items for our service
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecUseDataProtectionKeychain as String: true
+        ]
+
+        let status = SecItemDelete(query as CFDictionary)
+
+        if status == errSecSuccess {
+            Log.info(Log.Category.keychain, "Deleted all keychain items for service")
+            return 1
+        } else if status == errSecItemNotFound {
+            Log.info(Log.Category.keychain, "No keychain items found to delete")
+            return 0
+        } else {
+            Log.error(Log.Category.keychain, "Failed to delete keychain items: \(status)")
+            return -1
+        }
+    }
 }

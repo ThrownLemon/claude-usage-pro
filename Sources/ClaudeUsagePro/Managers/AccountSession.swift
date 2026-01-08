@@ -50,6 +50,14 @@ class AccountSession: Identifiable {
         fetchNow()
         scheduleRefreshTimer()
     }
+
+    func stopMonitoring() {
+        Log.debug(category, "Stopping monitoring for \(account.name)")
+        fetchTask?.cancel()
+        fetchTask = nil
+        timer?.invalidate()
+        timer = nil
+    }
     
     func scheduleRefreshTimer() {
         timer?.invalidate()
