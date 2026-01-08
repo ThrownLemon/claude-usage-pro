@@ -196,6 +196,12 @@ struct UsageView: View {
                                      ProgressView()
                                          .progressViewStyle(.circular)
                                          .controlSize(.mini)
+                                 } else if lastError != nil {
+                                     // Subtle warning when cached data shown but latest fetch failed
+                                     Image(systemName: "exclamationmark.triangle.fill")
+                                         .font(.system(size: 12))
+                                         .foregroundColor(.orange)
+                                         .help("Last fetch failed - showing cached data")
                                  } else {
                                      Image(systemName: "checkmark.circle.fill")
                                          .font(.system(size: 12))
