@@ -123,29 +123,79 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
     /// - Note: Failures are non-fatal; credentials will be retried on next app launch or can be re-entered by user
     @discardableResult
     func saveCredentialsToKeychain() -> Bool {
-        var success = true
+        var savedCookies = false
+        var savedApiToken = false
+        var savedOAuthToken = false
+
+        // Save cookies
         do {
             if !cookieProps.isEmpty {
                 try KeychainService.save(cookieProps, forKey: KeychainService.cookiesKey(for: id))
+                savedCookies = true
                 Log.debug(Log.Category.keychain, "Saved \(cookieProps.count) cookies for account \(id)")
             }
+        } catch {
+            Log.warning(Log.Category.keychain, "⚠️ Failed to save cookies for account \(id): \(error.localizedDescription)")
+            return false
+        }
+
+        // Save API token
+        do {
             if let token = apiToken {
                 try KeychainService.save(token, forKey: KeychainService.apiTokenKey(for: id))
+                savedApiToken = true
                 Log.debug(Log.Category.keychain, "Saved API token for account \(id)")
             }
+        } catch {
+            Log.warning(Log.Category.keychain, "⚠️ Failed to save API token for account \(id): \(error.localizedDescription)")
+            // Rollback cookies if they were saved
+            if savedCookies {
+                try? KeychainService.delete(forKey: KeychainService.cookiesKey(for: id))
+            }
+            return false
+        }
+
+        // Save OAuth token
+        do {
             if let token = oauthToken {
                 try KeychainService.save(token, forKey: KeychainService.oauthTokenKey(for: id))
+                savedOAuthToken = true
                 Log.debug(Log.Category.keychain, "Saved OAuth token for account \(id)")
             }
+        } catch {
+            Log.warning(Log.Category.keychain, "⚠️ Failed to save OAuth token for account \(id): \(error.localizedDescription)")
+            // Rollback previous saves
+            if savedCookies {
+                try? KeychainService.delete(forKey: KeychainService.cookiesKey(for: id))
+            }
+            if savedApiToken {
+                try? KeychainService.delete(forKey: KeychainService.apiTokenKey(for: id))
+            }
+            return false
+        }
+
+        // Save OAuth refresh token
+        do {
             if let refreshToken = oauthRefreshToken {
                 try KeychainService.save(refreshToken, forKey: KeychainService.oauthRefreshTokenKey(for: id))
                 Log.debug(Log.Category.keychain, "Saved OAuth refresh token for account \(id)")
             }
         } catch {
-            Log.warning(Log.Category.keychain, "⚠️ Failed to save credentials for account \(id): \(error.localizedDescription). Account may need to be re-added on next launch.")
-            success = false
+            Log.warning(Log.Category.keychain, "⚠️ Failed to save OAuth refresh token for account \(id): \(error.localizedDescription)")
+            // Rollback all previous saves
+            if savedCookies {
+                try? KeychainService.delete(forKey: KeychainService.cookiesKey(for: id))
+            }
+            if savedApiToken {
+                try? KeychainService.delete(forKey: KeychainService.apiTokenKey(for: id))
+            }
+            if savedOAuthToken {
+                try? KeychainService.delete(forKey: KeychainService.oauthTokenKey(for: id))
+            }
+            return false
         }
-        return success
+
+        return true
     }
 
     /// Load sensitive credentials from Keychain

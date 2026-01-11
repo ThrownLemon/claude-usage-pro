@@ -7,6 +7,8 @@ enum GLMTrackerError: Error, LocalizedError {
     case tokenNotFound
     /// Network request failed
     case fetchFailed(Error)
+    /// Response is not an HTTPURLResponse
+    case nonHTTPResponse
     /// Server returned non-200 status code
     case badResponse(statusCode: Int)
     /// Failed to parse JSON response
@@ -20,6 +22,8 @@ enum GLMTrackerError: Error, LocalizedError {
             return "GLM API token not found."
         case .fetchFailed(let error):
             return "Failed to fetch usage: \(error.localizedDescription)"
+        case .nonHTTPResponse:
+            return "Received a non-HTTP response from the server."
         case .badResponse(let statusCode):
             return "Received an invalid server response (Status Code: \(statusCode))."
         case .invalidJSONResponse(let error):
@@ -166,8 +170,7 @@ class GLMTrackerService {
         guard let httpResponse = response as? HTTPURLResponse else {
             let responseType = type(of: response)
             Log.error(category, "Unexpected response type: \(responseType)")
-            throw GLMTrackerError.fetchFailed(NSError(domain: "GLMTracker", code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "Received non-HTTP response of type \(responseType)"]))
+            throw GLMTrackerError.nonHTTPResponse
         }
 
         guard httpResponse.statusCode == 200 else {

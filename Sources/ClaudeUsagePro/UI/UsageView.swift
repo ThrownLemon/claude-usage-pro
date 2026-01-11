@@ -541,6 +541,7 @@ struct ErrorCardView: View {
                 .font(.system(size: 28))
                 .foregroundColor(needsReauth ? .red : .orange)
                 .frame(width: 44, height: 44)
+                .accessibilityLabel(needsReauth ? "Authentication required" : "Error")
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(accountName)
@@ -571,6 +572,7 @@ struct ErrorCardView: View {
                             .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Re-authenticate account")
                     .help("Re-authenticate")
                     .onHover { hovering in
                         isHoveringReauth = hovering
@@ -588,6 +590,7 @@ struct ErrorCardView: View {
                             .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Retry fetching usage data")
                     .help("Retry")
                     .onHover { hovering in
                         isHoveringRetry = hovering

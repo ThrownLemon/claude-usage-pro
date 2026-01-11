@@ -21,7 +21,7 @@ protocol SessionPingable {
 /// Configuration required for different tracker types.
 /// Used by the factory to create the appropriate tracker instance.
 enum TrackerConfiguration {
-    case claude(cookies: [HTTPCookie])
+    case claude(cookies: [[String: String]])
     case cursor
     case glm(apiToken: String)
 }
@@ -130,15 +130,33 @@ enum TrackerAdapterError: Error {
 @MainActor
 final class ClaudeTrackerAdapter: UsageTracker, SessionPingable, @unchecked Sendable {
     private let service: TrackerService
-    private let cookies: [HTTPCookie]
+    private let cookieProps: [[String: String]]
 
     // Track pending continuations to prevent leaks on concurrent calls
     private var pendingFetchContinuation: CheckedContinuation<UsageData, Error>?
     private var pendingPingContinuation: CheckedContinuation<Bool, Error>?
 
-    init(cookies: [HTTPCookie]) {
-        self.cookies = cookies
+    init(cookies: [[String: String]]) {
+        self.cookieProps = cookies
         self.service = TrackerService()
+    }
+
+    /// Converts stored cookie properties back to HTTPCookie objects
+    private var cookies: [HTTPCookie] {
+        return cookieProps.compactMap { props in
+            // Convert String keys back to HTTPCookiePropertyKey
+            var convertedProps: [HTTPCookiePropertyKey: Any] = [:]
+            for (k, v) in props {
+                convertedProps[HTTPCookiePropertyKey(rawValue: k)] = v
+            }
+            if let secure = props[HTTPCookiePropertyKey.secure.rawValue] {
+                convertedProps[.secure] = (secure == "TRUE" || secure == "true")
+            }
+            if let discard = props[HTTPCookiePropertyKey.discard.rawValue] {
+                convertedProps[.discard] = (discard == "TRUE" || discard == "true")
+            }
+            return HTTPCookie(properties: convertedProps)
+        }
     }
 
     nonisolated func fetchUsage() async throws -> UsageData {
