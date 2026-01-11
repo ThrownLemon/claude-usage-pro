@@ -352,21 +352,21 @@ actor AnthropicOAuthService {
     private func convertToUsageData(response: OAuthUsageResponse, planType: String?) -> UsageData {
         // Parse session (5-hour)
         var sessionPct = 0.0
-        var sessionReset = "Ready"
+        var sessionReset = Constants.Status.ready
         if let fiveHour = response.fiveHour {
             sessionPct = fiveHour.utilization / 100.0
             if let resetDateStr = fiveHour.resetsAt {
-                sessionReset = formatResetTime(isoDate: resetDateStr)
+                sessionReset = DateFormattingHelper.formatResetTime(isoDate: resetDateStr)
             }
         }
 
         // Parse weekly (7-day)
         var weeklyPct = 0.0
-        var weeklyReset = "Ready"
+        var weeklyReset = Constants.Status.ready
         if let sevenDay = response.sevenDay {
             weeklyPct = sevenDay.utilization / 100.0
             if let resetDateStr = sevenDay.resetsAt {
-                weeklyReset = formatResetDate(isoDate: resetDateStr)
+                weeklyReset = DateFormattingHelper.formatResetDate(isoDate: resetDateStr)
             }
         }
 
@@ -387,62 +387,9 @@ actor AnthropicOAuthService {
             planType: planType,
             // Extended OAuth data
             opusPercentage: response.sevenDayOpus.map { $0.utilization / 100.0 },
-            opusReset: response.sevenDayOpus?.resetsAt.map { formatResetDate(isoDate: $0) },
+            opusReset: response.sevenDayOpus?.resetsAt.map { DateFormattingHelper.formatResetDate(isoDate: $0) },
             sonnetPercentage: response.sevenDaySonnet.map { $0.utilization / 100.0 },
-            sonnetReset: response.sevenDaySonnet?.resetsAt.map { formatResetDate(isoDate: $0) }
+            sonnetReset: response.sevenDaySonnet?.resetsAt.map { DateFormattingHelper.formatResetDate(isoDate: $0) }
         )
-    }
-
-    // MARK: - Date Formatting
-
-    /// Shared ISO8601 date parser with fallback for fractional seconds
-    private static let iso8601Formatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    private static let iso8601FallbackFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
-
-    /// Parse an ISO8601 date string, trying with and without fractional seconds
-    private func parseISO8601Date(_ isoDate: String) -> Date? {
-        Self.iso8601Formatter.date(from: isoDate) ?? Self.iso8601FallbackFormatter.date(from: isoDate)
-    }
-
-    private func formatResetTime(isoDate: String) -> String {
-        guard let date = parseISO8601Date(isoDate) else {
-            return isoDate
-        }
-        return formatTimeRemaining(date)
-    }
-
-    private func formatTimeRemaining(_ date: Date) -> String {
-        let diff = date.timeIntervalSinceNow
-        if diff <= 0 { return "Ready" }
-
-        let hours = Int(diff) / 3600
-        let mins = (Int(diff) % 3600) / 60
-        return "\(hours)h \(mins)m"
-    }
-
-    private func formatResetDate(isoDate: String) -> String {
-        guard let date = parseISO8601Date(isoDate) else {
-            return isoDate
-        }
-        return formatDateDisplay(date)
-    }
-
-    private static let displayDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E h:mm a"
-        return formatter
-    }()
-
-    private func formatDateDisplay(_ date: Date) -> String {
-        Self.displayDateFormatter.string(from: date)
     }
 }

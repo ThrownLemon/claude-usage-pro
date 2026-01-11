@@ -49,10 +49,10 @@ struct UsageData: Hashable, Codable {
     /// - Parameter sessionReset: The raw reset string (e.g., "3h 45m" or "Ready")
     /// - Returns: Formatted display string (e.g., "Resets in 3h 45m" or "Ready")
     static func formatSessionResetDisplay(_ sessionReset: String) -> String {
-        if sessionReset == "Ready" || sessionReset.isEmpty {
+        if sessionReset == Constants.Status.ready || sessionReset.isEmpty {
             return sessionReset
         }
-        return "Resets in \(sessionReset)"
+        return "\(Constants.Status.resetsInPrefix) \(sessionReset)"
     }
 }
 
@@ -237,7 +237,7 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
     
     /// Display string for the account's tier/plan
     var limitDetails: String {
-        return usageData?.tier ?? "Fetching..."
+        return usageData?.tier ?? Constants.Status.fetching
     }
 
     /// Converts stored cookie properties back to HTTPCookie objects

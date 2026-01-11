@@ -34,6 +34,9 @@ class AnthropicOAuthLogin: ObservableObject {
     /// Called when OAuth login succeeds with the access token and optional refresh token
     var onLoginSuccess: ((_ accessToken: String, _ refreshToken: String?) -> Void)?
 
+    /// Called when OAuth login is cancelled by the user
+    var onLoginCancel: (() -> Void)?
+
     // MARK: - Public API
 
     /// Starts the OAuth login flow.
@@ -99,6 +102,7 @@ class AnthropicOAuthLogin: ObservableObject {
         errorMessage = nil
         clearPKCEState()
         Log.debug(category, "OAuth login cancelled")
+        onLoginCancel?()
     }
 
     // MARK: - PKCE Implementation
