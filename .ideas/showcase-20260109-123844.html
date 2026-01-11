@@ -1,0 +1,223 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude Usage Pro - Theme Concepts</title><style>
+:root{--bg:#1a1a2e;--bg2:#16213e;--tx:#fff;--tx2:#94a3b8;--acc:#e94560;--ok:#10b981;--card:rgba(255,255,255,0.1);--bdr:rgba(255,255,255,0.1)}
+.light{--bg:#f8fafc;--bg2:#e2e8f0;--tx:#1e293b;--tx2:#64748b;--card:rgba(255,255,255,0.9);--bdr:rgba(0,0,0,0.1)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,system-ui,sans-serif;background:linear-gradient(135deg,var(--bg),var(--bg2));min-height:100vh;padding:24px;color:var(--tx);transition:all .3s}
+.ctr{max-width:1500px;margin:0 auto}
+.hdr{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+h1{font-size:1.8rem}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--card);border:1px solid var(--bdr);color:var(--tx);padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem;transition:all .2s}
+.btn:hover{background:rgba(233,69,96,0.2);border-color:var(--acc)}
+.stats{display:flex;gap:20px;justify-content:center;margin-bottom:20px}
+.stat{text-align:center}.stat b{font-size:1.6rem;color:var(--acc)}.stat span{font-size:.7rem;color:var(--tx2);text-transform:uppercase}
+.selbanner{background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(16,185,129,0.1));border:1px solid var(--ok);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:none;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.selbanner.on{display:flex}
+.selinfo{display:flex;align-items:center;gap:10px}
+.selthumb{width:45px;height:45px;border-radius:6px;object-fit:cover;border:2px solid var(--ok)}
+.selname{color:var(--ok);font-weight:600}
+.selpath{background:rgba(0,0,0,0.2);padding:4px 8px;border-radius:4px;font-family:monospace;font-size:.7rem;color:var(--tx2)}
+.selacts button{padding:6px 12px;border-radius:5px;border:none;cursor:pointer;font-size:.8rem}
+.cpybtn{background:var(--ok);color:#fff}
+.clrbtn{background:transparent;border:1px solid var(--bdr)!important;color:var(--tx2)}
+.toolbar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.sbox{flex:1;min-width:180px;position:relative}
+.sbox input{width:100%;padding:8px 12px 8px 36px;border-radius:6px;border:1px solid var(--bdr);background:var(--card);color:var(--tx);font-size:.9rem}
+.sbox svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--tx2)}
+.ftags{display:flex;gap:5px;flex-wrap:wrap}
+.ftag{padding:5px 10px;border-radius:12px;background:var(--card);border:1px solid var(--bdr);color:var(--tx2);cursor:pointer;font-size:.75rem;transition:all .2s}
+.ftag:hover,.ftag.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.vtog{display:flex;background:var(--card);border-radius:6px;border:1px solid var(--bdr)}
+.vtog button{padding:6px 10px;border:none;background:transparent;color:var(--tx2);cursor:pointer}
+.vtog button.on{background:var(--acc);color:#fff}
+.ref{text-align:center;margin-bottom:20px;padding:12px;background:var(--card);border-radius:10px;border:1px solid var(--bdr)}
+.ref img{max-height:120px;border-radius:6px;cursor:pointer}
+.ref p{color:var(--tx2);margin-top:6px;font-size:.8rem}
+.gal{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.gal.list{grid-template-columns:1fr}.gal.list .card{display:flex}.gal.list .card img{width:220px;height:160px}.gal.list .cc{flex:1}
+.card{background:var(--card);backdrop-filter:blur(10px);border-radius:12px;overflow:hidden;transition:all .3s;border:2px solid var(--bdr);position:relative}
+.card.hid{display:none}
+.card:hover{transform:translateY(-5px);box-shadow:0 12px 24px rgba(0,0,0,0.2)}
+.card.on{border-color:var(--ok);box-shadow:0 0 16px rgba(16,185,129,0.25)}
+.badge{position:absolute;top:8px;left:8px;width:24px;height:24px;background:var(--acc);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:.75rem;color:#fff;z-index:5}
+.fav{position:absolute;top:8px;right:8px;width:28px;height:28px;background:rgba(0,0,0,0.5);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5}
+.fav svg{width:16px;height:16px;color:#fff}
+.fav:hover,.fav.on{background:var(--acc)}.fav.on svg{fill:#fff}
+.sel-ind{position:absolute;top:8px;right:42px;background:var(--ok);color:#fff;padding:3px 8px;border-radius:12px;font-size:.7rem;font-weight:600;display:none;align-items:center;gap:3px;z-index:5}
+.sel-ind svg{width:12px;height:12px}
+.card.on .sel-ind{display:flex}
+.card img{width:100%;height:320px;object-fit:cover;object-position:top;cursor:pointer;transition:transform .3s}
+.card:hover img{transform:scale(1.02)}
+.cc{padding:14px}
+.cc h3{color:var(--tx);margin-bottom:5px;font-size:1rem}
+.cc p{color:var(--tx2);font-size:.8rem;line-height:1.4;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.tag{padding:2px 6px;background:rgba(233,69,96,0.2);color:var(--acc);border-radius:8px;font-size:.65rem;text-transform:uppercase}
+.acts{display:flex;gap:5px}
+.act{flex:1;padding:7px;border-radius:5px;border:1px solid var(--bdr);background:transparent;color:var(--tx2);cursor:pointer;font-size:.75rem;transition:all .2s;text-decoration:none;text-align:center}
+.act:hover{background:var(--acc);color:#fff;border-color:var(--acc)}
+.act.on{background:var(--ok);color:#fff;border-color:var(--ok)}
+.dl{flex:0;padding:7px 10px}
+.cmppanel{position:fixed;bottom:-80px;left:50%;transform:translateX(-50%);background:var(--bg2);padding:10px 16px;border-radius:10px 10px 0 0;display:flex;align-items:center;gap:10px;box-shadow:0 -4px 16px rgba(0,0,0,0.25);transition:bottom .3s;z-index:100}
+.cmppanel.on{bottom:0}
+.cmpthumbs{display:flex;gap:5px}
+.cmpthumbs img{width:40px;height:40px;border-radius:5px;object-fit:cover;border:2px solid var(--acc)}
+.cmppanel button{padding:6px 12px;background:var(--acc);border:none;color:#fff;border-radius:5px;cursor:pointer}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;flex-direction:column}
+.modal.on{display:flex}
+.mhdr{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:rgba(0,0,0,0.5)}
+.mtitle{color:#fff;font-size:1.1rem}
+.mclose{color:#fff;font-size:1.6rem;cursor:pointer}.mclose:hover{color:var(--acc)}
+.mbody{flex:1;display:flex;justify-content:center;align-items:center;padding:16px;position:relative}
+.mbody img{max-width:90%;max-height:70vh;border-radius:8px;transition:transform .3s}
+.mbody img.zoom{transform:scale(1.5);cursor:zoom-out}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;background:rgba(255,255,255,0.1);border:none;border-radius:50%;color:#fff;font-size:1.2rem;cursor:pointer}
+.nav:hover{background:var(--acc)}
+.nav.p{left:14px}.nav.n{right:14px}
+.mftr{padding:12px 20px;background:rgba(0,0,0,0.5);display:flex;justify-content:center;gap:10px}
+.mftr button{padding:8px 16px;background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.mftr button:hover{background:var(--acc)}
+.mftr button.pri{background:var(--ok)}
+.cmpmodal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1001;flex-direction:column}
+.cmpmodal.on{display:flex}
+.cmpctr{flex:1;display:flex;justify-content:center;align-items:center;gap:24px;padding:16px}
+.cmpitem{text-align:center}
+.cmpitem img{max-height:60vh;max-width:40vw;border-radius:8px}
+.cmpitem h3{color:#fff;margin-top:10px}
+.keys{position:fixed;bottom:14px;right:14px;background:var(--card);backdrop-filter:blur(10px);padding:12px;border-radius:8px;border:1px solid var(--bdr);display:none;z-index:50}
+.keys.on{display:block}
+.keys h4{color:var(--tx);margin-bottom:8px;font-size:.8rem}
+.key{display:flex;justify-content:space-between;gap:12px;margin-bottom:3px;font-size:.7rem}
+.key kbd{background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;color:var(--acc)}
+.key span{color:var(--tx2)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ok);color:#fff;padding:10px 20px;border-radius:6px;opacity:0;transition:all .3s;z-index:2000}
+.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+.ftr{text-align:center;color:var(--tx2);margin-top:24px;font-size:.75rem}
+.fp{background:rgba(0,0,0,0.2);padding:3px 6px;border-radius:3px;font-family:monospace;font-size:.65rem}
+</style></head><body>
+<div class="ctr">
+<div class="hdr"><h1>Claude Usage Pro - Theme Concepts</h1>
+<div class="ctrls">
+<button class="btn" onclick="togTheme()"><span id="tl">☀️ Light</span></button>
+<button class="btn" onclick="startSS()">▶ Slideshow</button>
+<button class="btn" onclick="togKeys()">? Keys</button>
+</div></div>
+<div class="stats">
+<div class="stat"><b id="tc">5</b><br><span>Images</span></div>
+<div class="stat"><b id="fc">0</b><br><span>Favorites</span></div>
+<div class="stat"><b id="cc">0</b><br><span>Comparing</span></div>
+</div>
+<div class="selbanner" id="selbanner">
+<div class="selinfo"><img class="selthumb" id="selthumb"><div><span class="selname" id="selname"></span><br><small style="color:var(--tx2)">Ready for AI</small></div></div>
+<span class="selpath" id="selpath"></span>
+<div class="selacts"><button class="cpybtn" onclick="copyPath()">Copy</button><button class="clrbtn" onclick="clearSel()">Clear</button></div>
+</div>
+<div class="toolbar">
+<div class="sbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" placeholder="Search..." id="sinp" oninput="filter()"></div>
+<div class="ftags"><span class="ftag on" data-f="all" onclick="setF('all')">All</span><span class="ftag" data-f="aquatic" onclick="setF('aquatic')">aquatic</span><span class="ftag" data-f="blue" onclick="setF('blue')">blue</span><span class="ftag" data-f="calm" onclick="setF('calm')">calm</span><span class="ftag" data-f="cosmic" onclick="setF('cosmic')">cosmic</span><span class="ftag" data-f="dark" onclick="setF('dark')">dark</span><span class="ftag" data-f="elegant" onclick="setF('elegant')">elegant</span><span class="ftag" data-f="gradient" onclick="setF('gradient')">gradient</span><span class="ftag" data-f="green" onclick="setF('green')">green</span></div>
+<div class="vtog"><button class="on" onclick="setV('grid',this)">▦</button><button onclick="setV('list',this)">☰</button></div>
+</div>
+<div class="ref"><img src="/tmp/screenshot-20260109-123007.png" onclick="openRef()"><p>Reference</p></div>
+<div class="gal" id="gal"><div class="card" data-i="0" data-t="blue,aquatic,calm" data-n="ocean theme">
+        <div class="badge">1</div>
+        <div class="fav" onclick="toggleFav(0,event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+        <div class="sel-ind" id="si0"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Selected</div>
+        <img src="/Users/travis/Documents/projects/claude-usage-pro/.ideas/ocean_theme.jpg" onclick="openM(0)">
+        <div class="cc"><h3>Ocean Theme</h3><p>Redesign this macOS menu bar app with an Ocean theme. Use deep blue (#0a192f) background, aquamarine (#64ffda) for progress bars and accents, coral (#ff6b6b) for warnings, and sea foam (#88d498) for s...</p>
+        <div class="tags"><span class="tag">blue</span><span class="tag">aquatic</span><span class="tag">calm</span></div>
+        <div class="acts">
+            <button class="act cmp" onclick="addCmp(0,event)">Compare</button>
+            <button class="act sel" onclick="selAI(0,event)">Select</button>
+            <a href="/Users/travis/Documents/projects/claude-usage-pro/.ideas/ocean_theme.jpg" download class="act dl" onclick="event.stopPropagation()">↓</a>
+        </div></div></div><div class="card" data-i="1" data-t="warm,gradient,elegant" data-n="sunset theme">
+        <div class="badge">2</div>
+        <div class="fav" onclick="toggleFav(1,event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+        <div class="sel-ind" id="si1"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Selected</div>
+        <img src="/Users/travis/Documents/projects/claude-usage-pro/.ideas/sunset_theme.jpg" onclick="openM(1)">
+        <div class="cc"><h3>Sunset Theme</h3><p>Redesign this macOS menu bar app with a Sunset/Dusk theme. Use warm gradient backgrounds from deep purple (#2d1b69) to orange (#ff6b35). Progress bars should use warm coral to gold gradients. Gauges s...</p>
+        <div class="tags"><span class="tag">warm</span><span class="tag">gradient</span><span class="tag">elegant</span></div>
+        <div class="acts">
+            <button class="act cmp" onclick="addCmp(1,event)">Compare</button>
+            <button class="act sel" onclick="selAI(1,event)">Select</button>
+            <a href="/Users/travis/Documents/projects/claude-usage-pro/.ideas/sunset_theme.jpg" download class="act dl" onclick="event.stopPropagation()">↓</a>
+        </div></div></div><div class="card" data-i="2" data-t="dark,cosmic,neon" data-n="midnight cosmic">
+        <div class="badge">3</div>
+        <div class="fav" onclick="toggleFav(2,event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+        <div class="sel-ind" id="si2"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Selected</div>
+        <img src="/Users/travis/Documents/projects/claude-usage-pro/.ideas/midnight_theme.jpg" onclick="openM(2)">
+        <div class="cc"><h3>Midnight Cosmic</h3><p>Redesign this macOS menu bar app with a Midnight Cosmic theme. Deep space black (#0d0d0d) background with subtle star particles. Neon purple (#9b5de5) and electric blue (#00f5d4) for gauges and progre...</p>
+        <div class="tags"><span class="tag">dark</span><span class="tag">cosmic</span><span class="tag">neon</span></div>
+        <div class="acts">
+            <button class="act cmp" onclick="addCmp(2,event)">Compare</button>
+            <button class="act sel" onclick="selAI(2,event)">Select</button>
+            <a href="/Users/travis/Documents/projects/claude-usage-pro/.ideas/midnight_theme.jpg" download class="act dl" onclick="event.stopPropagation()">↓</a>
+        </div></div></div><div class="card" data-i="3" data-t="pink,luxury,elegant" data-n="rose gold luxe">
+        <div class="badge">4</div>
+        <div class="fav" onclick="toggleFav(3,event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+        <div class="sel-ind" id="si3"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Selected</div>
+        <img src="/Users/travis/Documents/projects/claude-usage-pro/.ideas/rose_gold_theme.jpg" onclick="openM(3)">
+        <div class="cc"><h3>Rose Gold Luxe</h3><p>Redesign this macOS menu bar app with a Rose Gold luxury theme. Soft blush pink (#ffd6e0) and cream (#fff5f5) backgrounds for cards. Rose gold (#b76e79) accents for progress bars and badges. Champagne...</p>
+        <div class="tags"><span class="tag">pink</span><span class="tag">luxury</span><span class="tag">elegant</span></div>
+        <div class="acts">
+            <button class="act cmp" onclick="addCmp(3,event)">Compare</button>
+            <button class="act sel" onclick="selAI(3,event)">Select</button>
+            <a href="/Users/travis/Documents/projects/claude-usage-pro/.ideas/rose_gold_theme.jpg" download class="act dl" onclick="event.stopPropagation()">↓</a>
+        </div></div></div><div class="card" data-i="4" data-t="retro,green,hacker" data-n="terminal retro">
+        <div class="badge">5</div>
+        <div class="fav" onclick="toggleFav(4,event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+        <div class="sel-ind" id="si4"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Selected</div>
+        <img src="/Users/travis/Documents/projects/claude-usage-pro/.ideas/terminal_theme.jpg" onclick="openM(4)">
+        <div class="cc"><h3>Terminal Retro</h3><p>Redesign this macOS menu bar app with a classic Terminal/Hacker theme. Pure black (#000000) background with bright green (#00ff00) text and gauges like old CRT monitors. Add subtle scanline effects. P...</p>
+        <div class="tags"><span class="tag">retro</span><span class="tag">green</span><span class="tag">hacker</span></div>
+        <div class="acts">
+            <button class="act cmp" onclick="addCmp(4,event)">Compare</button>
+            <button class="act sel" onclick="selAI(4,event)">Select</button>
+            <a href="/Users/travis/Documents/projects/claude-usage-pro/.ideas/terminal_theme.jpg" download class="act dl" onclick="event.stopPropagation()">↓</a>
+        </div></div></div></div>
+<p class="ftr">Selection: <span class="fp">/Users/travis/Documents/projects/claude-usage-pro/.ideas/selected_image.json</span> | Press ? for shortcuts</p>
+</div>
+<div class="cmppanel" id="cmppanel"><span style="color:var(--tx2)">Compare:</span><div class="cmpthumbs" id="cmpthumbs"></div><button onclick="openCmp()">View</button><button onclick="clearCmp()" style="background:transparent;border:1px solid var(--bdr)">×</button></div>
+<div class="modal" id="modal">
+<div class="mhdr"><span class="mtitle" id="mtitle"></span><span class="mclose" onclick="closeM()">×</span></div>
+<div class="mbody"><button class="nav p" onclick="prevI()">‹</button><img id="mimg" onclick="togZoom()"><button class="nav n" onclick="nextI()">›</button></div>
+<div class="mftr"><button onclick="togFavM()">♥ Favorite</button><button class="pri" onclick="selFromM()">✓ Select for AI</button><a id="mdl" href="" download><button>↓ Download</button></a></div>
+</div>
+<div class="cmpmodal" id="cmpmodal"><div class="mhdr"><span class="mtitle">Comparison</span><span class="mclose" onclick="closeCmp()">×</span></div><div class="cmpctr" id="cmpctr"></div></div>
+<div class="keys" id="keys"><h4>Shortcuts</h4><div class="key"><kbd>?</kbd><span>Help</span></div><div class="key"><kbd>T</kbd><span>Theme</span></div><div class="key"><kbd>S</kbd><span>Slideshow</span></div><div class="key"><kbd>Esc</kbd><span>Close</span></div><div class="key"><kbd>←→</kbd><span>Navigate</span></div><div class="key"><kbd>F</kbd><span>Favorite</span></div><div class="key"><kbd>E</kbd><span>Select</span></div><div class="key"><kbd>/</kbd><span>Search</span></div><div class="key"><kbd>1-9</kbd><span>Quick select</span></div></div>
+<div class="toast" id="toast"></div>
+<script>
+const D=[{"path": "/Users/travis/Documents/projects/claude-usage-pro/.ideas/ocean_theme.jpg", "name": "Ocean Theme", "description": "Redesign this macOS menu bar app with an Ocean theme. Use deep blue (#0a192f) background, aquamarine (#64ffda) for progress bars and accents, coral (#ff6b6b) for warnings, and sea foam (#88d498) for s...", "tags": ["blue", "aquatic", "calm"]}, {"path": "/Users/travis/Documents/projects/claude-usage-pro/.ideas/sunset_theme.jpg", "name": "Sunset Theme", "description": "Redesign this macOS menu bar app with a Sunset/Dusk theme. Use warm gradient backgrounds from deep purple (#2d1b69) to orange (#ff6b35). Progress bars should use warm coral to gold gradients. Gauges s...", "tags": ["warm", "gradient", "elegant"]}, {"path": "/Users/travis/Documents/projects/claude-usage-pro/.ideas/midnight_theme.jpg", "name": "Midnight Cosmic", "description": "Redesign this macOS menu bar app with a Midnight Cosmic theme. Deep space black (#0d0d0d) background with subtle star particles. Neon purple (#9b5de5) and electric blue (#00f5d4) for gauges and progre...", "tags": ["dark", "cosmic", "neon"]}, {"path": "/Users/travis/Documents/projects/claude-usage-pro/.ideas/rose_gold_theme.jpg", "name": "Rose Gold Luxe", "description": "Redesign this macOS menu bar app with a Rose Gold luxury theme. Soft blush pink (#ffd6e0) and cream (#fff5f5) backgrounds for cards. Rose gold (#b76e79) accents for progress bars and badges. Champagne...", "tags": ["pink", "luxury", "elegant"]}, {"path": "/Users/travis/Documents/projects/claude-usage-pro/.ideas/terminal_theme.jpg", "name": "Terminal Retro", "description": "Redesign this macOS menu bar app with a classic Terminal/Hacker theme. Pure black (#000000) background with bright green (#00ff00) text and gauges like old CRT monitors. Add subtle scanline effects. P...", "tags": ["retro", "green", "hacker"]}],SF="/Users/travis/Documents/projects/claude-usage-pro/.ideas/selected_image.json",RF="/tmp/screenshot-20260109-123007.png";
+let ci=0,si=-1,cmp=[],fav=JSON.parse(localStorage.getItem('gfav')||'[]'),cf='all',ss=null;
+document.addEventListener('DOMContentLoaded',()=>{updFav();updStats();chkSel();});
+function togTheme(){document.body.classList.toggle('light');document.getElementById('tl').textContent=document.body.classList.contains('light')?'🌙 Dark':'☀️ Light';}
+function setV(v,b){document.getElementById('gal').classList.toggle('list',v==='list');document.querySelectorAll('.vtog button').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
+function filter(){const s=document.getElementById('sinp').value.toLowerCase();document.querySelectorAll('.card').forEach(c=>{const m=c.dataset.n.includes(s)||c.dataset.t.includes(s);const fm=cf==='all'||c.dataset.t.includes(cf);c.classList.toggle('hid',!(m&&fm));});}
+function setF(f){cf=f;document.querySelectorAll('.ftag').forEach(t=>t.classList.toggle('on',t.dataset.f===f));filter();}
+function openM(i){ci=i;document.getElementById('mimg').src=D[i].path;document.getElementById('mtitle').textContent=D[i].name;document.getElementById('mdl').href=D[i].path;document.getElementById('modal').classList.add('on');}
+function closeM(){document.getElementById('modal').classList.remove('on');document.getElementById('mimg').classList.remove('zoom');stopSS();}
+function openRef(){if(RF){document.getElementById('mimg').src=RF;document.getElementById('mtitle').textContent='Reference';document.getElementById('modal').classList.add('on');}}
+function prevI(){ci=(ci-1+D.length)%D.length;openM(ci);}
+function nextI(){ci=(ci+1)%D.length;openM(ci);}
+function togZoom(){document.getElementById('mimg').classList.toggle('zoom');}
+function toggleFav(i,e){if(e)e.stopPropagation();const x=fav.indexOf(i);if(x>-1)fav.splice(x,1);else fav.push(i);localStorage.setItem('gfav',JSON.stringify(fav));updFav();updStats();toast(x>-1?'Removed':'Added to favorites');}
+function togFavM(){toggleFav(ci);}
+function updFav(){document.querySelectorAll('.fav').forEach((b,i)=>b.classList.toggle('on',fav.includes(i)));}
+function selAI(i,e){if(e)e.stopPropagation();si=i;const d={index:i,name:D[i].name,path:D[i].path,description:D[i].description,tags:D[i].tags,selected_at:new Date().toISOString()};localStorage.setItem('gsel',JSON.stringify(d));updSelUI();toast('Selected: '+D[i].name);}
+function selFromM(){selAI(ci);closeM();}
+function chkSel(){const s=localStorage.getItem('gsel');if(s){const d=JSON.parse(s);si=d.index;updSelUI();}}
+function updSelUI(){document.querySelectorAll('.card').forEach((c,i)=>c.classList.toggle('on',i===si));document.querySelectorAll('.sel').forEach((b,i)=>b.classList.toggle('on',i===si));if(si>=0){document.getElementById('selbanner').classList.add('on');document.getElementById('selthumb').src=D[si].path;document.getElementById('selname').textContent=D[si].name;document.getElementById('selpath').textContent=D[si].path;}else document.getElementById('selbanner').classList.remove('on');}
+function clearSel(){si=-1;localStorage.removeItem('gsel');updSelUI();toast('Cleared');}
+function copyPath(){if(si>=0){navigator.clipboard.writeText(D[si].path);toast('Copied!');}}
+function addCmp(i,e){e.stopPropagation();const b=e.target.closest('.cmp');if(cmp.includes(i)){cmp=cmp.filter(x=>x!==i);b.classList.remove('on');}else if(cmp.length<2){cmp.push(i);b.classList.add('on');}else{toast('Max 2');return;}updCmp();updStats();}
+function updCmp(){const p=document.getElementById('cmppanel');if(cmp.length>0){p.classList.add('on');document.getElementById('cmpthumbs').innerHTML=cmp.map(i=>'<img src="'+D[i].path+'">').join('');}else p.classList.remove('on');}
+function openCmp(){if(cmp.length!==2){toast('Select 2');return;}document.getElementById('cmpctr').innerHTML=cmp.map(i=>'<div class="cmpitem"><img src="'+D[i].path+'"><h3>'+D[i].name+'</h3></div>').join('<div style="font-size:2rem;color:#fff">VS</div>');document.getElementById('cmpmodal').classList.add('on');}
+function closeCmp(){document.getElementById('cmpmodal').classList.remove('on');}
+function clearCmp(){cmp=[];document.querySelectorAll('.cmp').forEach(b=>b.classList.remove('on'));updCmp();updStats();}
+function startSS(){openM(0);ss=setInterval(nextI,3000);toast('Slideshow - ESC to stop');}
+function stopSS(){if(ss){clearInterval(ss);ss=null;}}
+function updStats(){document.getElementById('fc').textContent=fav.length;document.getElementById('cc').textContent=cmp.length;}
+function togKeys(){document.getElementById('keys').classList.toggle('on');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2000);}
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const m=document.getElementById('modal').classList.contains('on');switch(e.key){case'?':togKeys();break;case't':case'T':togTheme();break;case's':case'S':if(!m)startSS();break;case'Escape':closeM();closeCmp();document.getElementById('keys').classList.remove('on');break;case'ArrowLeft':if(m)prevI();break;case'ArrowRight':if(m)nextI();break;case'f':case'F':if(m)togFavM();break;case'e':case'E':if(m)selFromM();break;case'/':e.preventDefault();document.getElementById('sinp').focus();break;}if(e.key>='1'&&e.key<='9'){const i=parseInt(e.key)-1;if(i<D.length)selAI(i);}});
+</script></body></html>

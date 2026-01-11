@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Usage Pro is a macOS menu bar application that tracks Claude.ai API usage across multiple accounts. It displays session (5-hour) and weekly (7-day) usage limits with visual gauges, supports multi-account management with persistent cookie storage, and can auto-ping sessions to wake them up when usage resets.
+AI Usage Pro is a macOS menu bar application that tracks Claude.ai API usage across multiple accounts. It displays session (5-hour) and weekly (7-day) usage limits with visual gauges, supports multi-account management with persistent cookie storage, and can auto-ping sessions to wake them up when usage resets.
 
 ## Build Commands
 

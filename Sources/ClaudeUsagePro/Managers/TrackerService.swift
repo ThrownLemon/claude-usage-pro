@@ -1,25 +1,58 @@
 import Foundation
 import WebKit
 import Combine
+import os
 
-
+/// Service for fetching Claude.ai usage data using a hidden WKWebView.
+/// Injects JavaScript to call Claude's internal APIs and parse responses.
+@MainActor
 class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
+    private let category = Log.Category.tracker
+    /// The hidden WebView used for API calls
     private var webView: WKWebView?
     private var currentTask: AnyCancellable?
+    /// Stored cookies for ping operations
     private var storedCookies: [HTTPCookie] = []
+    /// Whether a ping operation is pending
     private var pendingPing = false
+    /// Work item for ping timeout handling
     private var pingTimeoutWorkItem: DispatchWorkItem?
-    
-    // Result callback
+
+    /// Called when usage data is successfully fetched
     var onUpdate: ((UsageData) -> Void)?
+    /// Called when an error occurs during fetching
     var onError: ((Error) -> Void)?
+    /// Called when a ping operation completes (with success status)
     var onPingComplete: ((Bool) -> Void)?
+
+    deinit {
+        // deinit runs on the main actor for @MainActor classes on macOS 14+
+        MainActor.assumeIsolated {
+            cleanup()
+        }
+    }
+
+    /// Clean up WKWebView resources to prevent memory leaks
+    private func cleanup() {
+        pingTimeoutWorkItem?.cancel()
+        pingTimeoutWorkItem = nil
+        cleanupExistingWebView()
+        webView = nil
+    }
+
+    /// Tear down the current webView (stopLoading, clear delegate, remove scripts)
+    private func cleanupExistingWebView() {
+        webView?.stopLoading()
+        webView?.navigationDelegate = nil
+        webView?.configuration.userContentController.removeAllUserScripts()
+    }
     
-    // Ping session by loading page with cookies and sending a message
+    /// Pings the session to wake it up and start a new usage window.
+    /// Creates a temporary chat conversation, sends a minimal message, then deletes it.
     func pingSession() {
-        print("[DEBUG] TrackerService: Pinging session...")
+        Log.debug(category, "Pinging session...")
         guard !storedCookies.isEmpty else {
-            print("[ERROR] TrackerService: No cookies stored for ping")
+            Log.error(category, "No cookies stored for ping")
             onPingComplete?(false)
             return
         }
@@ -28,12 +61,12 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         pingTimeoutWorkItem?.cancel()
         let timeoutWorkItem = DispatchWorkItem { [weak self] in
             guard let self = self, self.pendingPing else { return }
-            print("[ERROR] TrackerService: Ping timed out")
+            Log.error(self.category, "Ping timed out")
             self.pendingPing = false
             self.onPingComplete?(false)
         }
         pingTimeoutWorkItem = timeoutWorkItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15.0, execute: timeoutWorkItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.Timeouts.pingTimeout, execute: timeoutWorkItem)
         
         // Create fresh webView with stored cookies
         let config = WKWebViewConfiguration()
@@ -48,21 +81,21 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         }
         
         group.notify(queue: .main) {
-            print("[DEBUG] TrackerService: Cookies injected for ping, loading page...")
+            Log.debug(self.category, "Cookies injected for ping, loading page...")
+
+            // Clean up existing webView before creating a new one
+            self.cleanupExistingWebView()
+
             let webView = WKWebView(frame: .zero, configuration: config)
             webView.navigationDelegate = self
             self.webView = webView
-            
-            if let url = URL(string: "https://claude.ai/chats") {
-                webView.load(URLRequest(url: url))
-            } else {
-                print("[ERROR] TrackerService: Invalid ping URL")
-                self.pendingPing = false
-                self.onPingComplete?(false)
-            }
+
+            let url = Constants.URLs.claudeChats
+            webView.load(URLRequest(url: url))
         }
     }
     
+    /// Executes the JavaScript ping script that creates a temporary conversation.
     private func executePingScript() {
         let script = """
             let result = { error: 'not started' };
@@ -218,21 +251,21 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
             return result;
         """
         
-        print("[DEBUG] TrackerService: Executing ping script...")
-        webView?.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
+        Log.debug(category, "Executing ping script...")
+        webView?.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { [self] result in
             var success = false
             switch result {
             case .success(let value):
                 if let dict = value as? [String: Any] {
-                    print("[DEBUG] TrackerService: Ping completed: \(dict)")
+                    Log.debug(category, "Ping completed: \(dict)")
                     if dict["success"] != nil {
                         success = true
                     }
                 } else {
-                    print("[DEBUG] TrackerService: Ping result: \(String(describing: value))")
+                    Log.debug(category, "Ping result: \(String(describing: value))")
                 }
             case .failure(let error):
-                print("[DEBUG] TrackerService: Ping FAILED with error: \(error)")
+                Log.error(category, "Ping FAILED: \(error)")
             }
             if self.pendingPing {
                 self.onPingComplete?(success)
@@ -243,13 +276,15 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         }
     }
     
+    /// Fetches usage data by loading Claude.ai in a hidden WebView.
+    /// - Parameter cookies: Authentication cookies from the login session
     func fetchUsage(cookies: [HTTPCookie]) {
-        print("[DEBUG] TrackerService: Starting fetch for \(cookies.count) cookies.")
+        Log.debug(category, "Starting fetch for \(cookies.count) cookies")
         self.storedCookies = cookies // Store for later ping use
         DispatchQueue.main.async {
             let config = WKWebViewConfiguration()
             config.websiteDataStore = .nonPersistent()
-            
+
             let group = DispatchGroup()
             for cookie in cookies {
                 group.enter()
@@ -257,28 +292,33 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                     group.leave()
                 }
             }
-            
+
             group.notify(queue: .main) {
-                print("[DEBUG] TrackerService: Cookies injected, starting hidden browser.")
+                Log.debug(self.category, "Cookies injected, starting hidden browser")
                 self.startHiddenBrowser(config: config)
             }
         }
     }
     
+    /// Creates and starts the hidden WebView browser for fetching usage data.
+    /// - Parameter config: The WebView configuration with injected cookies
     private func startHiddenBrowser(config: WKWebViewConfiguration) {
+        // Clean up existing webView before creating a new one
+        cleanupExistingWebView()
+
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
         self.webView = webView
-        
-        let urlString = "https://claude.ai/chats"
-        if let url = URL(string: urlString) {
-             print("[DEBUG] TrackerService: Loading \(urlString)...")
-            webView.load(URLRequest(url: url))
-        }
+
+        let url = Constants.URLs.claudeChats
+        Log.debug(category, "Loading \(url)")
+        webView.load(URLRequest(url: url))
     }
-    
+
+    /// Called when the WebView finishes loading a page.
+    /// Injects JavaScript to fetch usage data or execute ping.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        print("[DEBUG] TrackerService: Page finished loading. Injecting JS...")
+        Log.debug(category, "Page finished loading, injecting JS...")
         
         // If ping is pending, execute ping script instead of usage script
         if pendingPing {
@@ -290,62 +330,174 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         
         let script = """
             try {
-                 // Step 1: Fetch Organizations
                  const orgResponse = await fetch('/api/organizations');
                  if (!orgResponse.ok) return { error: "Failed to fetch orgs: " + orgResponse.status };
                  
                  const orgs = await orgResponse.json();
                  if (!orgs || orgs.length === 0) return { error: "No organizations found" };
                  
-                 // Just take the first one or look for 'personal' capabilities
-                 const orgId = orgs[0].uuid || orgs[0].id; // usage often depends on UUID
+                 const orgId = orgs[0].uuid || orgs[0].id;
                  
-                 // Step 2: Fetch Usage Data
                  const usageResponse = await fetch(`/api/organizations/${orgId}/usage`);
                  let usageData = {};
+                 let usageStatus = usageResponse.status;
+                 let usageError = null;
                  if (usageResponse.ok) {
                     usageData = await usageResponse.json();
+                 } else {
+                    usageError = await usageResponse.text();
                  }
                  
-                 // Step 3: Fetch Statsig for Tier
+                 let settingsData = {};
+                 let settingsStatus = null;
+                 const settingsResponse = await fetch(`/api/organizations/${orgId}/settings`);
+                 settingsStatus = settingsResponse.status;
+                 if (settingsResponse.ok) {
+                    settingsData = await settingsResponse.json();
+                 }
+                 
+                 let rateLimitData = {};
+                 let rateLimitStatus = null;
+                 const rateLimitResponse = await fetch(`/api/organizations/${orgId}/rate_limit`);
+                 rateLimitStatus = rateLimitResponse.status;
+                 if (rateLimitResponse.ok) {
+                    rateLimitData = await rateLimitResponse.json();
+                 }
+                 
+                 let bootstrapData = {};
+                 const bootstrapResponse = await fetch(`/api/bootstrap/${orgId}`);
+                 if (bootstrapResponse.ok) {
+                    bootstrapData = await bootstrapResponse.json();
+                 }
+                 
                  const statsResponse = await fetch(`/api/bootstrap/${orgId}/statsig`);
                  let statsData = {};
                  if (statsResponse.ok) {
                     statsData = await statsResponse.json();
                  }
                  
-                 // Step 4: Fetch User Me (Retry)
                  const meResponse = await fetch('/api/users/me'); 
                  let meData = {};
                  if (meResponse.ok) {
                     meData = await meResponse.json();
                  }
                  
-                 // Step 5: Global Scope Fallback
                  const intercom = window.intercomSettings || {};
                  const globalUser = window.user || window.__USER__ || {};
                  
+                 // Determine tier - check multiple sources for Max/Pro status
+                 let tierFromStatsig = (() => {
+                    const custom = statsData?.user?.custom;
+                    if (custom?.isMax) return "Max";
+                    if (custom?.isPro) return "Pro";
+                    // Check tier field directly
+                    if (custom?.tier) return custom.tier;
+                    return null;
+                 })();
+
+                 // Check intercom companies for plan info
+                 const intercomPlan = intercom?.companies?.[0]?.plan;
+
+                 // Check bootstrap for subscription info
+                 const bootstrapPlan = bootstrapData?.account?.subscription?.plan ||
+                                       bootstrapData?.subscription?.plan ||
+                                       bootstrapData?.account?.plan;
+
+                 // Priority: statsig > intercom > bootstrap > default to Free
+                 let tier = "Free";
+                 if (tierFromStatsig) {
+                    tier = tierFromStatsig;
+                 } else if (intercomPlan) {
+                    // Normalize plan name
+                    const planLower = intercomPlan.toLowerCase();
+                    if (planLower.includes("max")) tier = "Max";
+                    else if (planLower.includes("pro")) tier = "Pro";
+                    else tier = intercomPlan;
+                 } else if (bootstrapPlan) {
+                    const planLower = (typeof bootstrapPlan === 'string' ? bootstrapPlan : '').toLowerCase();
+                    if (planLower.includes("max")) tier = "Max";
+                    else if (planLower.includes("pro")) tier = "Pro";
+                    else if (typeof bootstrapPlan === 'string') tier = bootstrapPlan;
+                 }
+
                  return {
-                    tier: statsData?.user?.custom?.isPro ? "Pro" : "Free",
+                    tier: tier,
                     email: meData?.email_address || meData?.email || intercom?.email || globalUser?.email,
                     orgId: orgId,
                     debugMe: meData,
                     debugIntercom: intercom,
-                    usage: usageData
+                    debugTierSources: {
+                       statsig: tierFromStatsig,
+                       intercom: intercomPlan,
+                       bootstrap: bootstrapPlan,
+                       statsigCustom: statsData?.user?.custom
+                    },
+                    usage: usageData,
+                    usageStatus: usageStatus,
+                    usageError: usageError,
+                    settings: settingsData,
+                    settingsStatus: settingsStatus,
+                    rateLimit: rateLimitData,
+                    rateLimitStatus: rateLimitStatus,
+                    bootstrap: bootstrapData
                  };
             } catch (e) {
                 return { error: e.toString() };
             }
         """
         
-        webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
-             print("[DEBUG] TrackerService: JS Evaluation completed.")
-            
+        webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { [self] result in
+            Log.debug(category, "JS Evaluation completed")
+
             switch result {
             case .success(let value):
-                // print("[DEBUG] TrackerService: JS Result: \(value)")
-                
+                Log.debug(category, "RAW JS Result: \(String(describing: value))")
+
                 if let dict = value as? [String: Any] {
+                    if let usageStatus = dict["usageStatus"] as? Int {
+                        Log.debug(category, "Usage API status: \(usageStatus)")
+                    }
+                    if let usageError = dict["usageError"] as? String {
+                        Log.error(category, "Usage API error: \(usageError)")
+                    }
+
+                    if let settings = dict["settings"] as? [String: Any] {
+                        Log.debug(category, "RAW settings: \(settings)")
+                    }
+                    if let settingsStatus = dict["settingsStatus"] as? Int {
+                        Log.debug(category, "Settings API status: \(settingsStatus)")
+                    }
+
+                    if let rateLimit = dict["rateLimit"] as? [String: Any] {
+                        Log.debug(category, "RAW rateLimit: \(rateLimit)")
+                    }
+                    if let rateLimitStatus = dict["rateLimitStatus"] as? Int {
+                        Log.debug(category, "RateLimit API status: \(rateLimitStatus)")
+                    }
+
+                    if let bootstrap = dict["bootstrap"] as? [String: Any] {
+                        Log.debug(category, "RAW bootstrap: \(bootstrap)")
+                    }
+
+                    if let tierSources = dict["debugTierSources"] as? [String: Any] {
+                        Log.debug(category, "Tier detection sources: \(tierSources)")
+                    }
+
+                    if let usage = dict["usage"] as? [String: Any] {
+                        Log.debug(category, "RAW usage data: \(usage)")
+                        if let fiveHour = usage["five_hour"] as? [String: Any] {
+                            Log.debug(category, "RAW five_hour: \(fiveHour)")
+                        } else {
+                            Log.warning(category, "NO five_hour in usage!")
+                        }
+                        if let sevenDay = usage["seven_day"] as? [String: Any] {
+                            Log.debug(category, "RAW seven_day: \(sevenDay)")
+                        } else {
+                            Log.warning(category, "NO seven_day in usage!")
+                        }
+                    } else {
+                        Log.warning(category, "NO usage data in response! Keys present: \(dict.keys)")
+                    }
                     let tier = dict["tier"] as? String ?? "Unknown"
                     let email = dict["email"] as? String
                     
@@ -364,13 +516,19 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                         }
                     }
                     
-                    print("[DEBUG] Parsed - Tier: \(tier), Email: \(email ?? "nil"), Name: \(fullName ?? "nil"), Plan: \(planType ?? "nil")")
+                    Log.debug(category, "Parsed metadata - Tier: \(tier), Email: \(email ?? "nil"), Name: \(fullName ?? "nil"), Plan: \(planType ?? "nil")")
                     
                     var sessionPct = 0.0
                     var sessionReset = "Ready" // Default to Ready if nil
                     var weeklyPct = 0.0
                     var weeklyReset = "Ready"
                     
+                    // Model-specific weekly quotas (for Max plan)
+                    var sonnetPct: Double?
+                    var sonnetReset: String?
+                    var opusPct: Double?
+                    var opusReset: String?
+
                     if let usage = dict["usage"] as? [String: Any] {
                         // Parse Session (5-hour)
                         if let fiveHour = usage["five_hour"] as? [String: Any] {
@@ -385,7 +543,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                                 sessionReset = "Ready"
                             }
                         }
-                        
+
                         // Parse Weekly (7-day)
                         if let sevenDay = usage["seven_day"] as? [String: Any] {
                             if let util = sevenDay["utilization"] as? Double {
@@ -395,29 +553,61 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                                 weeklyReset = self.formatResetDate(isoDate: resetDateStr)
                             }
                         }
+
+                        // Parse Sonnet-specific weekly quota (Max plan)
+                        if let sevenDaySonnet = usage["seven_day_sonnet"] as? [String: Any] {
+                            if let util = sevenDaySonnet["utilization"] as? Double {
+                                sonnetPct = util / 100.0
+                            }
+                            if let resetDateStr = sevenDaySonnet["resets_at"] as? String {
+                                sonnetReset = self.formatResetDate(isoDate: resetDateStr)
+                            }
+                        }
+
+                        // Parse Opus-specific weekly quota (Max plan)
+                        if let sevenDayOpus = usage["seven_day_opus"] as? [String: Any] {
+                            if let util = sevenDayOpus["utilization"] as? Double {
+                                opusPct = util / 100.0
+                            }
+                            if let resetDateStr = sevenDayOpus["resets_at"] as? String {
+                                opusReset = self.formatResetDate(isoDate: resetDateStr)
+                            }
+                        }
                     }
                     
+                    Log.info(category, "FINAL PARSED - sessionPct=\(sessionPct) sessionReset=\(sessionReset) weeklyPct=\(weeklyPct) weeklyReset=\(weeklyReset) sonnetPct=\(String(describing: sonnetPct)) opusPct=\(String(describing: opusPct))")
+
                     let data = UsageData(
                         sessionPercentage: sessionPct,
                         sessionReset: sessionReset,
-                        sessionResetDisplay: sessionReset,
+                        sessionResetDisplay: UsageData.formatSessionResetDisplay(sessionReset),
                         weeklyPercentage: weeklyPct,
                         weeklyReset: weeklyReset,
+                        weeklyResetDisplay: weeklyReset,
                         tier: tier,
                         email: email,
                         fullName: fullName,
                         orgName: orgName,
-                        planType: planType
+                        planType: planType,
+                        opusPercentage: opusPct,
+                        opusReset: opusReset,
+                        sonnetPercentage: sonnetPct,
+                        sonnetReset: sonnetReset
                     )
                     self.onUpdate?(data)
                 }
             case .failure(let error):
-                print("[DEBUG] TrackerService: JS Error: \(error.localizedDescription)")
+                Log.error(category, "JS Error: \(error.localizedDescription)")
+                self.onError?(error)
             }
         }
     }
-    
-    // Helpers for date formatting
+
+    // MARK: - Date Formatting Helpers
+
+    /// Formats an ISO date string into a human-readable time remaining string.
+    /// - Parameter isoDate: ISO 8601 formatted date string
+    /// - Returns: Formatted string like "3h 21m" or "Ready" if time has passed
     private func formatResetTime(isoDate: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -432,13 +622,16 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         return "\(hours)h \(mins)m"
     }
     
+    /// Formats an ISO date string into a human-readable date display.
+    /// - Parameter isoDate: ISO 8601 formatted date string
+    /// - Returns: Formatted string like "Thu 8:59 PM"
     private func formatResetDate(isoDate: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let date = formatter.date(from: isoDate) else { return isoDate }
-        
+
         let displayFormatter = DateFormatter()
-        displayFormatter.dateFormat = "E h:mm a" // e.g., Thu 8:59 PM
+        displayFormatter.dateFormat = "E h:mm a"
         return displayFormatter.string(from: date)
     }
 }

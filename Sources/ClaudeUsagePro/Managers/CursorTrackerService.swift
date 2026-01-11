@@ -1,11 +1,17 @@
 import Foundation
 import SQLite3
 
+/// Errors that can occur when tracking Cursor usage.
 enum CursorTrackerError: Error, LocalizedError {
+    /// Authentication token not found in the local Cursor database
     case authNotFound
+    /// Network request failed
     case fetchFailed(Error)
+    /// Server returned non-200 status code
     case badResponse(statusCode: Int)
+    /// Failed to parse JSON response
     case invalidJSONResponse(Error)
+    /// API URL is malformed
     case invalidAPIURL
 
     var errorDescription: String? {
@@ -39,31 +45,47 @@ private struct Plan: Codable {
     let remaining: Int
 }
 
+/// Authentication data extracted from Cursor's local database.
 struct CursorAuthData {
+    /// OAuth access token for API calls
     let accessToken: String?
+    /// User's email address
     let email: String?
+    /// Subscription type (e.g., "pro", "free")
     let membershipType: String?
 }
 
+/// Usage information for a Cursor account.
 struct CursorUsageInfo {
+    /// User's email address
     let email: String?
+    /// Number of requests used in current period
     let planUsed: Int
+    /// Maximum requests allowed in current period
     let planLimit: Int
+    /// Remaining requests in current period
     let planRemaining: Int
+    /// Plan type (e.g., "pro", "free")
     let planType: String?
 }
 
+/// Service for fetching Cursor IDE usage statistics from the local installation.
 class CursorTrackerService {
     private let cursorAPIBase = "https://api2.cursor.sh"
     private let stateDBPath = "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
-    
+
     init() {}
-    
+
+    /// Checks if Cursor is installed on this machine.
+    /// - Returns: True if the Cursor state database exists
     func isInstalled() -> Bool {
         let path = NSString(string: "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb").expandingTildeInPath
         return FileManager.default.fileExists(atPath: path)
     }
     
+    /// Fetches current usage statistics from the Cursor API.
+    /// - Returns: Usage information including requests used and limits
+    /// - Throws: CursorTrackerError if authentication or fetch fails
     func fetchCursorUsage() async throws -> CursorUsageInfo {
         guard let auth = readAuthFromStateDB(), let token = auth.accessToken else {
             throw CursorTrackerError.authNotFound

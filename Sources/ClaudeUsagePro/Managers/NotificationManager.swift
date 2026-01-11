@@ -1,26 +1,39 @@
 import Foundation
 import UserNotifications
 import Combine
+import os
 
+/// Manages macOS user notifications for usage alerts and session ready events.
+/// Handles permission requests, notification delivery, and rate limiting.
+@MainActor
 class NotificationManager: NSObject, ObservableObject {
+    /// Shared singleton instance
     static let shared = NotificationManager()
+    private let category = Log.Category.notifications
 
-    // Notification center is optional - may not be available when running outside app bundle
+    /// The system notification center (may be nil when running outside app bundle)
     private var notificationCenter: UNUserNotificationCenter?
+    /// Current notification authorization status
     @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    /// Whether the notification system is available
     @Published var isAvailable: Bool = false
 
-    // Callback-based pattern following TrackerService
+    /// Called when notification permission is granted
     var onPermissionGranted: (() -> Void)?
+    /// Called when notification permission is denied
     var onPermissionDenied: (() -> Void)?
+    /// Called when a notification-related error occurs
     var onError: ((Error) -> Void)?
 
     // MARK: - Rate Limiting
 
-    // Track last notification time per account per type to prevent spam
-    // Key format: "accountName:notificationType.identifier"
+    /// Tracks last notification time per account per type to prevent spam
+    /// Thread-safe access protected by notificationLock
     private var lastNotificationTimes: [String: Date] = [:]
-    private let cooldownInterval: TimeInterval = 5 * 60 // 5 minutes
+    /// Lock for thread-safe access to lastNotificationTimes
+    private let notificationLock = NSLock()
+    /// Cooldown period between notifications of the same type
+    private let cooldownInterval: TimeInterval = Constants.Notifications.cooldownInterval
 
     override init() {
         super.init()
@@ -31,7 +44,7 @@ class NotificationManager: NSObject, ObservableObject {
     private func initializeNotificationCenter() {
         // Check if we're running in a proper app bundle to avoid crash
         guard Bundle.main.bundleIdentifier != nil else {
-            print("[WARN] NotificationManager: No bundle identifier - notifications disabled (running via swift run?)")
+            Log.warning(category, "No bundle identifier - notifications disabled (running via swift run?)")
             isAvailable = false
             return
         }
@@ -45,7 +58,7 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Notification Types
 
-
+    /// Types of notifications the app can send
     enum NotificationType {
         case sessionThreshold75
         case sessionThreshold90
@@ -71,12 +84,22 @@ class NotificationManager: NSObject, ObservableObject {
 
     // MARK: - Notification Content Builders
 
+    /// Contains the text content for a notification
     struct NotificationContent {
+        /// The notification title
         let title: String
+        /// The notification body text
         let body: String
+        /// Unique identifier for the notification
         let identifier: String
     }
 
+    /// Builds notification content for a given notification type.
+    /// - Parameters:
+    ///   - type: The type of notification to build
+    ///   - accountName: The name of the account this notification is for
+    ///   - thresholdPercent: The threshold percentage to display (for threshold notifications)
+    /// - Returns: A NotificationContent struct with title, body, and identifier
     func buildNotificationContent(
         type: NotificationType,
         accountName: String,
@@ -112,20 +135,23 @@ class NotificationManager: NSObject, ObservableObject {
 
     /// Generate a unique key for tracking notification cooldown per account and type
     /// - Parameters:
-    ///   - accountName: The name of the account
+    ///   - accountId: The stable UUID of the account (not name, which can change)
     ///   - type: The notification type
-    /// - Returns: A unique key string in format "accountName:type.identifier"
-    func cooldownKey(accountName: String, type: NotificationType) -> String {
-        return "\(accountName):\(type.identifier)"
+    /// - Returns: A unique key string in format "accountId:type.identifier"
+    func cooldownKey(accountId: UUID, type: NotificationType) -> String {
+        return "\(accountId.uuidString):\(type.identifier)"
     }
 
     /// Check if cooldown period has passed since last notification of this type for this account
     /// - Parameters:
-    ///   - accountName: The name of the account
+    ///   - accountId: The stable UUID of the account
     ///   - type: The notification type
     /// - Returns: true if cooldown has passed (can send notification), false if still in cooldown period
-    private func canSendNotification(accountName: String, type: NotificationType) -> Bool {
-        let key = cooldownKey(accountName: accountName, type: type)
+    private func canSendNotification(accountId: UUID, type: NotificationType) -> Bool {
+        let key = cooldownKey(accountId: accountId, type: type)
+
+        notificationLock.lock()
+        defer { notificationLock.unlock() }
 
         guard let lastSent = lastNotificationTimes[key] else {
             // Never sent this notification type for this account, so we can send
@@ -138,19 +164,24 @@ class NotificationManager: NSObject, ObservableObject {
 
     /// Record that a notification was sent for rate limiting tracking
     /// - Parameters:
-    ///   - accountName: The name of the account
+    ///   - accountId: The stable UUID of the account
     ///   - type: The notification type
-    private func recordNotificationSent(accountName: String, type: NotificationType) {
-        let key = cooldownKey(accountName: accountName, type: type)
+    private func recordNotificationSent(accountId: UUID, type: NotificationType) {
+        let key = cooldownKey(accountId: accountId, type: type)
+
+        notificationLock.lock()
+        defer { notificationLock.unlock() }
+
         lastNotificationTimes[key] = Date()
     }
 
     // MARK: - Permission Management
 
-    // Request notification permission from the user
+    /// Requests notification permission from the user.
+    /// Results are returned via onPermissionGranted, onPermissionDenied, or onError callbacks.
     func requestPermission() {
         guard let center = notificationCenter else {
-            print("[DEBUG] NotificationManager: Skipping permission request - not available")
+            Log.debug(category, "Skipping permission request - not available")
             return
         }
 
@@ -172,7 +203,7 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    // Check current authorization status
+    /// Checks and updates the current notification authorization status.
     func checkAuthorizationStatus() {
         guard let center = notificationCenter else { return }
 
@@ -183,7 +214,11 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    // Send a notification with the given content
+    /// Sends a notification with the given content.
+    /// - Parameters:
+    ///   - title: The notification title
+    ///   - body: The notification body text
+    ///   - identifier: Unique identifier for the notification
     func sendNotification(title: String, body: String, identifier: String) {
         guard let center = notificationCenter else { return }
 
@@ -213,61 +248,69 @@ class NotificationManager: NSObject, ObservableObject {
         }
     }
 
-    // Send a typed notification using the content builder
-    func sendNotification(type: NotificationType, accountName: String, thresholdPercent: Int? = nil) {
+    /// Sends a typed notification using the content builder.
+    /// Applies rate limiting to prevent notification spam.
+    /// - Parameters:
+    ///   - type: The type of notification to send
+    ///   - accountId: The stable UUID of the account
+    ///   - accountName: The display name of the account
+    ///   - thresholdPercent: The threshold percentage to display (for threshold notifications)
+    func sendNotification(type: NotificationType, accountId: UUID, accountName: String, thresholdPercent: Int? = nil) {
         // Check cooldown to prevent notification spam
-        guard canSendNotification(accountName: accountName, type: type) else {
+        guard canSendNotification(accountId: accountId, type: type) else {
             return
         }
 
         let content = buildNotificationContent(type: type, accountName: accountName, thresholdPercent: thresholdPercent)
         // Use cooldownKey as identifier to ensure uniqueness per account per type
-        sendNotification(title: content.title, body: content.body, identifier: cooldownKey(accountName: accountName, type: type))
+        sendNotification(title: content.title, body: content.body, identifier: cooldownKey(accountId: accountId, type: type))
 
         // Record that notification was sent for rate limiting
-        recordNotificationSent(accountName: accountName, type: type)
+        recordNotificationSent(accountId: accountId, type: type)
     }
 
-    // Remove pending notifications by identifier
+    /// Removes a pending notification by its identifier.
+    /// - Parameter identifier: The notification identifier to remove
     func removePendingNotification(identifier: String) {
         notificationCenter?.removePendingNotificationRequests(withIdentifiers: [identifier])
     }
 
-    // Remove all pending notifications
+    /// Removes all pending notifications.
     func removeAllPendingNotifications() {
         notificationCenter?.removeAllPendingNotificationRequests()
     }
 
-    // Remove delivered notifications by identifier
+    /// Removes a delivered notification by its identifier.
+    /// - Parameter identifier: The notification identifier to remove
     func removeDeliveredNotification(identifier: String) {
         notificationCenter?.removeDeliveredNotifications(withIdentifiers: [identifier])
     }
 
-    // Remove all delivered notifications
+    /// Removes all delivered notifications.
     func removeAllDeliveredNotifications() {
         notificationCenter?.removeAllDeliveredNotifications()
     }
 }
 
 // MARK: - UNUserNotificationCenterDelegate
+
 extension NotificationManager: UNUserNotificationCenterDelegate {
-    // Handle notification when app is in foreground
-    func userNotificationCenter(
+    /// Handles notification presentation when the app is in the foreground.
+    /// Shows notifications as banners with sound even when the app is active.
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // Show notification even when app is in foreground
         completionHandler([.banner, .sound])
     }
 
-    // Handle notification interaction (user tapped on it)
-    func userNotificationCenter(
+    /// Handles notification interaction when the user taps on it.
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        // Handle notification tap if needed
         completionHandler()
     }
 }

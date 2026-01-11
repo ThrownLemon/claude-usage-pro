@@ -1,12 +1,12 @@
-# Claude Usage Pro
+# AI Usage Pro
 
-![macOS](https://img.shields.io/badge/platform-macOS%2013%2B-blue)
+![macOS](https://img.shields.io/badge/platform-macOS%2014%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**Claude Usage Pro** is a native macOS menu bar application that helps you monitor your Claude.ai usage across multiple accounts. Stay on top of your session and weekly usage limits with beautiful visual gauges that change color as you approach your limits.
+**AI Usage Pro** is a native macOS menu bar application that helps you monitor your Claude.ai usage across multiple accounts. Stay on top of your session and weekly usage limits with beautiful visual gauges that change color as you approach your limits.
 
-Whether you're managing a single Claude account or juggling multiple accounts across different organizations, Claude Usage Pro provides an at-a-glance view of your remaining capacity with session and weekly usage tracking. The app features persistent cookie storage for seamless multi-account management and can automatically wake up sessions when usage resets, ensuring you never miss a beat.
+Whether you're managing a single Claude account or juggling multiple accounts across different organizations, AI Usage Pro provides an at-a-glance view of your remaining capacity with session and weekly usage tracking. The app features persistent cookie storage for seamless multi-account management and can automatically wake up sessions when usage resets, ensuring you never miss a beat.
 
 ## Features
 
@@ -21,7 +21,7 @@ Whether you're managing a single Claude account or juggling multiple accounts ac
 
 ## Requirements
 
-- **macOS 13 (Ventura) or later** – The app requires macOS 13+ to run
+- **macOS 14 (Sonoma) or later** – The app requires macOS 14+ to run
 - **Swift 5.9+** – Required for building from source
 - **Xcode 15+** (optional) – Recommended for development, but not required for building with Swift CLI
 
@@ -31,8 +31,8 @@ Whether you're managing a single Claude account or juggling multiple accounts ac
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ThrownLemon/claude-usage-pro.git
-   cd claude-usage-pro
+   git clone https://github.com/ThrownLemon/ai-usage-pro.git
+   cd ai-usage-pro
    ```
 
 2. **Build the application**
@@ -85,7 +85,7 @@ To make the app more accessible, you can:
 
 2. **Click the menu bar icon**
 
-   Click the Claude Usage Pro icon in your menu bar to open the main interface.
+   Click the AI Usage Pro icon in your menu bar to open the main interface.
 
 3. **Add your first account**
 
@@ -129,7 +129,7 @@ If you work with multiple Claude.ai accounts across different organizations:
 
 ## Settings
 
-Claude Usage Pro offers several configurable options to customize your monitoring experience. Access the Settings panel by clicking the **gear icon** (⚙️) in the app interface.
+AI Usage Pro offers several configurable options to customize your monitoring experience. Access the Settings panel by clicking the **gear icon** (⚙️) in the app interface.
 
 ### Refresh Interval
 
@@ -167,7 +167,7 @@ The Settings panel also provides account management capabilities:
 
 ## How It Works
 
-Claude Usage Pro uses a lightweight, privacy-focused approach to track your Claude.ai usage:
+AI Usage Pro uses a lightweight, privacy-focused approach to track your Claude.ai usage:
 
 1. **Authentication via WebKit** – When you add an account, the app opens an embedded WebKit browser window where you log in to Claude.ai using your normal credentials. This ensures your login information is handled securely by Claude.ai's official authentication flow.
 
@@ -177,7 +177,7 @@ Claude Usage Pro uses a lightweight, privacy-focused approach to track your Clau
 
 4. **Local Processing** – All data processing happens entirely on your device. The app never sends your credentials or usage data to any third-party servers. Your authentication cookies and usage information remain private and stored only on your Mac.
 
-This architecture ensures that Claude Usage Pro provides real-time usage tracking while maintaining the security and privacy of your Claude.ai account credentials.
+This architecture ensures that AI Usage Pro provides real-time usage tracking while maintaining the security and privacy of your Claude.ai account credentials.
 
 ## Contributing
 
@@ -185,9 +185,9 @@ Contributions are welcome! Whether you're fixing bugs, adding features, or impro
 
 ### How to Contribute
 
-1. **Check existing issues** – Browse the [Issues](https://github.com/ThrownLemon/claude-usage-pro/issues) page to see if your bug or feature request already exists
+1. **Check existing issues** – Browse the [Issues](https://github.com/ThrownLemon/ai-usage-pro/issues) page to see if your bug or feature request already exists
 2. **Open a new issue** – If you've found a bug or have a feature idea, create a new issue to discuss it first
-3. **Submit a Pull Request** – Fork the repository, make your changes, and submit a [Pull Request](https://github.com/ThrownLemon/claude-usage-pro/compare)
+3. **Submit a Pull Request** – Fork the repository, make your changes, and submit a [Pull Request](https://github.com/ThrownLemon/ai-usage-pro/compare)
 
 ### Development
 
