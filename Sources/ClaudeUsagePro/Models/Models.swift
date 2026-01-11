@@ -245,20 +245,7 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
 
     /// Converts stored cookie properties back to HTTPCookie objects
     var cookies: [HTTPCookie] {
-        return cookieProps.compactMap { props in
-            // Convert String keys back to HTTPCookiePropertyKey
-            var convertedProps: [HTTPCookiePropertyKey: Any] = [:]
-            for (k, v) in props {
-                convertedProps[HTTPCookiePropertyKey(rawValue: k)] = v
-            }
-            if let secure = props[HTTPCookiePropertyKey.secure.rawValue] {
-                  convertedProps[.secure] = (secure == "TRUE" || secure == "true")
-            }
-            if let discard = props[HTTPCookiePropertyKey.discard.rawValue] {
-                  convertedProps[.discard] = (discard == "TRUE" || discard == "true")
-            }
-            return HTTPCookie(properties: convertedProps)
-        }
+        HTTPCookie.fromCodable(cookieProps)
     }
     
     /// Creates a new Claude or Cursor account with cookies.
@@ -347,7 +334,7 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
 
     /// Whether this account uses OAuth authentication (preferred method)
     var usesOAuth: Bool {
-        oauthToken != nil && !oauthToken!.isEmpty
+        oauthToken?.isEmpty == false
     }
 
     /// Whether this account has any valid credentials
@@ -358,7 +345,7 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
         case .cursor:
             return !cookieProps.isEmpty
         case .glm:
-            return apiToken != nil && !apiToken!.isEmpty
+            return apiToken?.isEmpty == false
         }
     }
 

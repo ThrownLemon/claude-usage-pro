@@ -102,7 +102,9 @@ struct GLMUsageInfo {
 }
 
 /// Service for fetching GLM Coding Plan usage statistics from the Zhipu AI API.
-class GLMTrackerService {
+/// Marked @unchecked Sendable because all properties are immutable after init
+/// and async methods use only URLSession.shared which is itself Sendable.
+final class GLMTrackerService: @unchecked Sendable {
     private let category = Log.Category.glmTracker
     private let baseURL: String
     private let modelUsageURL: String
@@ -215,9 +217,23 @@ class GLMTrackerService {
                         monthlyUsed = usage
                         monthlyLimit = total
                     } else if let usage = limit.usage {
-                        // Fallback: if we only have usage without total, use it as used with percentage
+                        // Fallback: if we only have usage without total, estimate limit from percentage
                         monthlyUsed = usage
-                        monthlyLimit = monthlyPercentage > 0 ? usage / (monthlyPercentage / 100.0) : 0
+                        // Safety: require minimum 1% to avoid division by very small values
+                        let minPercentage = 1.0  // 1% minimum threshold
+                        let maxMonthlyLimit = 1_000_000_000.0  // 1 billion cap for sanity
+                        if monthlyPercentage >= minPercentage {
+                            let calculatedLimit = usage / (monthlyPercentage / 100.0)
+                            // Validate the result is finite and reasonable
+                            if calculatedLimit.isFinite && calculatedLimit <= maxMonthlyLimit {
+                                monthlyLimit = calculatedLimit
+                            } else {
+                                Log.warning(category, "Calculated monthlyLimit (\(calculatedLimit)) is invalid, using 0")
+                                monthlyLimit = 0
+                            }
+                        } else {
+                            monthlyLimit = 0
+                        }
                     } else if let details = limit.usageDetails, !details.isEmpty,
                           let current = details.first?.currentValue, let total = details.first?.total {
                         monthlyUsed = current
@@ -275,8 +291,7 @@ class GLMTrackerService {
         guard let httpResponse = response as? HTTPURLResponse else {
             let responseType = type(of: response)
             Log.error(category, "Unexpected response type in fetchModelUsage: \(responseType)")
-            throw GLMTrackerError.fetchFailed(NSError(domain: "GLMTracker", code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "Received non-HTTP response of type \(responseType)"]))
+            throw GLMTrackerError.nonHTTPResponse
         }
 
         guard httpResponse.statusCode == 200 else {
@@ -317,8 +332,7 @@ class GLMTrackerService {
         guard let httpResponse = response as? HTTPURLResponse else {
             let responseType = type(of: response)
             Log.error(category, "Unexpected response type in fetchToolUsage: \(responseType)")
-            throw GLMTrackerError.fetchFailed(NSError(domain: "GLMTracker", code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "Received non-HTTP response of type \(responseType)"]))
+            throw GLMTrackerError.nonHTTPResponse
         }
 
         guard httpResponse.statusCode == 200 else {

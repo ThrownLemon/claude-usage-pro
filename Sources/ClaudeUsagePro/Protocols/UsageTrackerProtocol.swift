@@ -143,20 +143,7 @@ final class ClaudeTrackerAdapter: UsageTracker, SessionPingable, @unchecked Send
 
     /// Converts stored cookie properties back to HTTPCookie objects
     private var cookies: [HTTPCookie] {
-        return cookieProps.compactMap { props in
-            // Convert String keys back to HTTPCookiePropertyKey
-            var convertedProps: [HTTPCookiePropertyKey: Any] = [:]
-            for (k, v) in props {
-                convertedProps[HTTPCookiePropertyKey(rawValue: k)] = v
-            }
-            if let secure = props[HTTPCookiePropertyKey.secure.rawValue] {
-                convertedProps[.secure] = (secure == "TRUE" || secure == "true")
-            }
-            if let discard = props[HTTPCookiePropertyKey.discard.rawValue] {
-                convertedProps[.discard] = (discard == "TRUE" || discard == "true")
-            }
-            return HTTPCookie(properties: convertedProps)
-        }
+        HTTPCookie.fromCodable(cookieProps)
     }
 
     nonisolated func fetchUsage() async throws -> UsageData {
