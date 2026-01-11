@@ -43,8 +43,12 @@ struct KeychainService {
     ///   - key: The unique key to identify this item
     /// - Throws: KeychainError if the operation fails
     static func save(_ data: Data, forKey key: String) throws {
-        // First try to delete any existing item (from both keychain types)
-        try? delete(forKey: key)
+        // First try to delete any existing item from data protection keychain
+        // delete() already treats errSecItemNotFound as success, so any thrown
+        // error represents a real failure (permissions, corruption) that should propagate
+        try delete(forKey: key)
+
+        // Legacy keychain cleanup is best-effort (may not exist, different error handling)
         try? deleteFromLegacyKeychain(forKey: key)
 
         // Try saving to data protection keychain first
