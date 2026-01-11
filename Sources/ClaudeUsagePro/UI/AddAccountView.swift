@@ -153,9 +153,12 @@ struct AddAccountView: View {
     @State private var isValidating = false
     @State private var errorMessage: String?
     @State private var isCheckingKeychain = false
+    /// Tracks the current OAuth validation task for cancellation
+    @State private var oauthValidationTask: Task<Void, Never>?
+    /// Tracks the current GLM validation task for cancellation
+    @State private var glmValidationTask: Task<Void, Never>?
 
-    @AppStorage(ThemeManager.themeKey) private var selectedTheme: String = AppTheme.standard
-        .rawValue
+    @AppStorage(ThemeManager.themeKey) private var selectedTheme: String = AppTheme.standard.rawValue
     @Environment(\.colorScheme) private var colorScheme
 
     private var theme: ThemeColors {
@@ -181,6 +184,11 @@ struct AddAccountView: View {
             }
         }
         .frame(maxHeight: .infinity)
+        .onDisappear {
+            // Cancel any in-flight validation tasks when view disappears
+            oauthValidationTask?.cancel()
+            glmValidationTask?.cancel()
+        }
     }
 
     private var accountTypeMenu: some View {
@@ -369,7 +377,9 @@ struct AddAccountView: View {
             }
 
             Button {
-                Task {
+                // Cancel any existing validation task before starting a new one
+                oauthValidationTask?.cancel()
+                oauthValidationTask = Task {
                     await validateAndSubmitOAuthToken()
                 }
             } label: {
@@ -504,7 +514,9 @@ struct AddAccountView: View {
             }
 
             Button {
-                Task {
+                // Cancel any existing validation task before starting a new one
+                glmValidationTask?.cancel()
+                glmValidationTask = Task {
                     await validateAndSubmit()
                 }
             } label: {

@@ -88,8 +88,7 @@ struct AccountTypeButton: View {
     let action: () -> Void
 
     @State private var isHovering = false
-    @AppStorage(ThemeManager.themeKey) private var selectedTheme: String = AppTheme.standard
-        .rawValue
+    @AppStorage(ThemeManager.themeKey) private var selectedTheme: String = AppTheme.standard.rawValue
     @Environment(\.colorScheme) private var colorScheme
 
     private var theme: ThemeColors {
@@ -155,8 +154,7 @@ struct AddAccountCardView: View {
     let action: () -> Void
     @State private var isHovering = false
 
-    @AppStorage(ThemeManager.themeKey) private var selectedTheme: String = AppTheme.standard
-        .rawValue
+    @AppStorage(ThemeManager.themeKey) private var selectedTheme: String = AppTheme.standard.rawValue
     @Environment(\.colorScheme) private var colorScheme
 
     private var theme: ThemeColors {

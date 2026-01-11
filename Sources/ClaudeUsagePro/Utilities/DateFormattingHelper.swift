@@ -27,6 +27,9 @@ enum DateFormattingHelper {
     private static let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "E h:mm a"
+        // Use current locale and timezone for user-friendly display
+        formatter.locale = Locale.current
+        formatter.timeZone = TimeZone.current
         return formatter
     }()
 
