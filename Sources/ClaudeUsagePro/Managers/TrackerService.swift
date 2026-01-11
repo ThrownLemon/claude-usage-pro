@@ -519,9 +519,9 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                     Log.debug(category, "Parsed metadata - Tier: \(tier), Email: \(email ?? "nil"), Name: \(fullName ?? "nil"), Plan: \(planType ?? "nil")")
                     
                     var sessionPct = 0.0
-                    var sessionReset = "Ready" // Default to Ready if nil
+                    var sessionReset = Constants.Status.ready // Default to Ready if nil
                     var weeklyPct = 0.0
-                    var weeklyReset = "Ready"
+                    var weeklyReset = Constants.Status.ready
                     
                     // Model-specific weekly quotas (for Max plan)
                     var sonnetPct: Double?
@@ -536,11 +536,11 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                                 sessionPct = util / 100.0
                             }
                             if let resetDateStr = fiveHour["resets_at"] as? String {
-                                sessionReset = self.formatResetTime(isoDate: resetDateStr)
+                                sessionReset = DateFormattingHelper.formatResetTime(isoDate: resetDateStr)
                             } else if sessionPct > 0 {
                                 // If utilized but no reset date? Weird, but assume unknown.
                                 // If 0% utilized, "Ready" is correct.
-                                sessionReset = "Ready"
+                                sessionReset = Constants.Status.ready
                             }
                         }
 
@@ -550,7 +550,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                                 weeklyPct = util / 100.0
                             }
                             if let resetDateStr = sevenDay["resets_at"] as? String {
-                                weeklyReset = self.formatResetDate(isoDate: resetDateStr)
+                                weeklyReset = DateFormattingHelper.formatResetDate(isoDate: resetDateStr)
                             }
                         }
 
@@ -560,7 +560,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                                 sonnetPct = util / 100.0
                             }
                             if let resetDateStr = sevenDaySonnet["resets_at"] as? String {
-                                sonnetReset = self.formatResetDate(isoDate: resetDateStr)
+                                sonnetReset = DateFormattingHelper.formatResetDate(isoDate: resetDateStr)
                             }
                         }
 
@@ -570,7 +570,7 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
                                 opusPct = util / 100.0
                             }
                             if let resetDateStr = sevenDayOpus["resets_at"] as? String {
-                                opusReset = self.formatResetDate(isoDate: resetDateStr)
+                                opusReset = DateFormattingHelper.formatResetDate(isoDate: resetDateStr)
                             }
                         }
                     }
@@ -603,35 +603,4 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         }
     }
 
-    // MARK: - Date Formatting Helpers
-
-    /// Formats an ISO date string into a human-readable time remaining string.
-    /// - Parameter isoDate: ISO 8601 formatted date string
-    /// - Returns: Formatted string like "3h 21m" or "Ready" if time has passed
-    private func formatResetTime(isoDate: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoDate) else { return isoDate }
-        
-        let diff = date.timeIntervalSinceNow
-        if diff <= 0 { return "Ready" }
-        
-        // Format as "3 hr 21 min"
-        let hours = Int(diff) / 3600
-        let mins = (Int(diff) % 3600) / 60
-        return "\(hours)h \(mins)m"
-    }
-    
-    /// Formats an ISO date string into a human-readable date display.
-    /// - Parameter isoDate: ISO 8601 formatted date string
-    /// - Returns: Formatted string like "Thu 8:59 PM"
-    private func formatResetDate(isoDate: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoDate) else { return isoDate }
-
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateFormat = "E h:mm a"
-        return displayFormatter.string(from: date)
-    }
 }

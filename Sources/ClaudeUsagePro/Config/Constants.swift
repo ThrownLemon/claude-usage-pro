@@ -135,6 +135,20 @@ enum Constants {
         static let sessionWindowLabel = "Session usage"
     }
 
+    // MARK: - Status Strings
+
+    /// Common status string constants used throughout the app
+    enum Status {
+        /// Status indicating a session is ready to use (no active usage)
+        static let ready = "Ready"
+        /// Prefix for reset time display
+        static let resetsInPrefix = "Resets in"
+        /// Status when data is being fetched
+        static let fetching = "Fetching..."
+        /// Unknown status placeholder
+        static let unknown = "Unknown"
+    }
+
     // MARK: - Window Dimensions
 
     /// Window size constants

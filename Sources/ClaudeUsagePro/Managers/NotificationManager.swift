@@ -65,6 +65,7 @@ class NotificationManager: NSObject, ObservableObject {
         case weeklyThreshold75
         case weeklyThreshold90
         case sessionReady
+        case needsReauthentication
 
         var identifier: String {
             switch self {
@@ -78,6 +79,8 @@ class NotificationManager: NSObject, ObservableObject {
                 return "weekly.threshold.90"
             case .sessionReady:
                 return "session.ready"
+            case .needsReauthentication:
+                return "account.needs.reauth"
             }
         }
     }
@@ -122,6 +125,10 @@ class NotificationManager: NSObject, ObservableObject {
         case .sessionReady:
             title = "Session Ready"
             body = "\(accountName): Your session is ready to start"
+
+        case .needsReauthentication:
+            title = "Re-authentication Required"
+            body = "\(accountName): Your session has expired. Please re-authenticate to continue monitoring."
         }
 
         return NotificationContent(

@@ -25,11 +25,47 @@ class AccountSession: Identifiable {
     private var cursorTracker: CursorTrackerService?
     private var glmTracker: GLMTrackerService?
     private var oauthService: AnthropicOAuthService?
-    // These properties need to be accessible from deinit (which is nonisolated).
-    // Timer.invalidate() and Task.cancel() are thread-safe operations.
-    // Using @ObservationIgnored to prevent the @Observable macro from transforming them.
-    @ObservationIgnored private nonisolated(unsafe) var timer: Timer?
-    @ObservationIgnored private nonisolated(unsafe) var fetchTask: Task<Void, Never>?
+
+    // MARK: - Thread-Safe Timer/Task Management
+    // These properties are accessed from both @MainActor context and nonisolated deinit.
+    // We use a lock to ensure thread-safe access, even though Timer.invalidate() and
+    // Task.cancel() are themselves thread-safe operations.
+
+    /// Lock protecting timer and fetchTask access
+    @ObservationIgnored private let resourceLock = NSLock()
+    /// Timer for periodic refresh (protected by resourceLock)
+    @ObservationIgnored private var _timer: Timer?
+    /// Current fetch task (protected by resourceLock)
+    @ObservationIgnored private var _fetchTask: Task<Void, Never>?
+
+    /// Thread-safe access to timer
+    private var timer: Timer? {
+        get {
+            resourceLock.lock()
+            defer { resourceLock.unlock() }
+            return _timer
+        }
+        set {
+            resourceLock.lock()
+            defer { resourceLock.unlock() }
+            _timer = newValue
+        }
+    }
+
+    /// Thread-safe access to fetchTask
+    private var fetchTask: Task<Void, Never>? {
+        get {
+            resourceLock.lock()
+            defer { resourceLock.unlock() }
+            return _fetchTask
+        }
+        set {
+            resourceLock.lock()
+            defer { resourceLock.unlock() }
+            _fetchTask = newValue
+        }
+    }
+
     var onRefreshTick: (() -> Void)?
 
     /// Creates a new session for monitoring an account's usage.
@@ -58,8 +94,13 @@ class AccountSession: Identifiable {
     }
     
     deinit {
-        fetchTask?.cancel()
-        timer?.invalidate()
+        // Thread-safe cleanup using the lock
+        resourceLock.lock()
+        _fetchTask?.cancel()
+        _timer?.invalidate()
+        _fetchTask = nil
+        _timer = nil
+        resourceLock.unlock()
     }
     
     /// Starts monitoring the account's usage with periodic refreshes.
@@ -104,7 +145,7 @@ class AccountSession: Identifiable {
 
         guard let usageData = account.usageData,
               usageData.sessionPercentage == 0,
-              usageData.sessionReset == "Ready" else {
+              usageData.sessionReset == Constants.Status.ready else {
             Log.debug(category, "Ping skipped (session not ready)")
             return
         }
@@ -234,11 +275,11 @@ class AccountSession: Identifiable {
 
     /// Attempts to refresh the OAuth access token using the refresh token.
     /// If successful, updates the account and retries the fetch.
-    /// If failed, marks the account as needing re-authentication.
+    /// If failed, marks the account as needing re-authentication and sends notification.
     private func attemptTokenRefresh() {
         guard let refreshToken = account.oauthRefreshToken else {
             Log.warning(category, "No refresh token available for \(account.name), marking as needs re-auth")
-            account.needsReauth = true
+            markNeedsReauthWithNotification()
             lastError = AnthropicOAuthError.httpError(statusCode: 401, message: "Token expired and no refresh token available")
             fallbackToCachedData()
             return
@@ -246,7 +287,7 @@ class AccountSession: Identifiable {
 
         guard let oauthService = oauthService else {
             Log.error(category, "No OAuth service available for refresh")
-            account.needsReauth = true
+            markNeedsReauthWithNotification()
             fallbackToCachedData()
             return
         }
@@ -271,11 +312,24 @@ class AccountSession: Identifiable {
 
             } catch {
                 Log.error(self.category, "Token refresh failed for \(self.account.name): \(error.localizedDescription)")
-                self.account.needsReauth = true
+                self.markNeedsReauthWithNotification()
                 self.lastError = error
                 self.fallbackToCachedData()
             }
         }
+    }
+
+    /// Marks the account as needing re-authentication and sends a system notification.
+    private func markNeedsReauthWithNotification() {
+        // Only notify if not already marked (prevents duplicate notifications)
+        guard !account.needsReauth else { return }
+
+        account.needsReauth = true
+        NotificationManager.shared.sendNotification(
+            type: .needsReauthentication,
+            accountId: account.id,
+            accountName: account.name
+        )
     }
 
     /// Falls back to cached data when authentication fails
@@ -297,10 +351,10 @@ class AccountSession: Identifiable {
 
             let usageData = UsageData(
                 sessionPercentage: sessionPercentage,
-                sessionReset: "Ready",
+                sessionReset: Constants.Status.ready,
                 sessionResetDisplay: "\(info.planUsed) / \(info.planLimit)",
                 weeklyPercentage: 0,
-                weeklyReset: "Ready",
+                weeklyReset: Constants.Status.ready,
                 weeklyResetDisplay: "\(info.planUsed) / \(info.planLimit)",
                 tier: info.planType ?? "Pro",
                 email: info.email,
@@ -349,10 +403,10 @@ class AccountSession: Identifiable {
 
             let usageData = UsageData(
                 sessionPercentage: info.sessionPercentage,
-                sessionReset: "Ready",
+                sessionReset: Constants.Status.ready,
                 sessionResetDisplay: sessionResetDisplay,
                 weeklyPercentage: info.monthlyPercentage,
-                weeklyReset: "Ready",
+                weeklyReset: Constants.Status.ready,
                 weeklyResetDisplay: weeklyResetDisplay,
                 tier: "GLM Coding Plan",
                 email: nil,
@@ -425,7 +479,7 @@ class AccountSession: Identifiable {
 
     private func didTransitionToReady(previousPercentage: Double?, currentPercentage: Double, currentReset: String) -> Bool {
         guard let prev = previousPercentage else { return false }
-        return prev > 0 && currentPercentage == 0 && currentReset == "Ready"
+        return prev > 0 && currentPercentage == 0 && currentReset == Constants.Status.ready
     }
 
     private func checkThresholdCrossingsAndNotify(usageData: UsageData) {
