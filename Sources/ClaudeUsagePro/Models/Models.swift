@@ -114,26 +114,35 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
 
     // MARK: - Keychain Integration
 
-    /// Save sensitive credentials to Keychain
+    /// Save sensitive credentials to Keychain.
+    /// Errors are logged as warnings. Keychain failures are rare but may occur due to:
+    /// - Keychain access restrictions
+    /// - Disk full
+    /// - System permissions issues
     /// - Returns: true if all credentials were saved successfully, false on any error
+    /// - Note: Failures are non-fatal; credentials will be retried on next app launch or can be re-entered by user
     @discardableResult
     func saveCredentialsToKeychain() -> Bool {
         var success = true
         do {
             if !cookieProps.isEmpty {
                 try KeychainService.save(cookieProps, forKey: KeychainService.cookiesKey(for: id))
+                Log.debug(Log.Category.keychain, "Saved \(cookieProps.count) cookies for account \(id)")
             }
             if let token = apiToken {
                 try KeychainService.save(token, forKey: KeychainService.apiTokenKey(for: id))
+                Log.debug(Log.Category.keychain, "Saved API token for account \(id)")
             }
             if let token = oauthToken {
                 try KeychainService.save(token, forKey: KeychainService.oauthTokenKey(for: id))
+                Log.debug(Log.Category.keychain, "Saved OAuth token for account \(id)")
             }
             if let refreshToken = oauthRefreshToken {
                 try KeychainService.save(refreshToken, forKey: KeychainService.oauthRefreshTokenKey(for: id))
+                Log.debug(Log.Category.keychain, "Saved OAuth refresh token for account \(id)")
             }
         } catch {
-            Log.error(Log.Category.keychain, "Failed to save credentials: \(error)")
+            Log.warning(Log.Category.keychain, "⚠️ Failed to save credentials for account \(id): \(error.localizedDescription). Account may need to be re-added on next launch.")
             success = false
         }
         return success

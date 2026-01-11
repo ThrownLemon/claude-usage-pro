@@ -28,7 +28,10 @@ class NotificationManager: NSObject, ObservableObject {
     // MARK: - Rate Limiting
 
     /// Tracks last notification time per account per type to prevent spam
+    /// Thread-safe access protected by notificationLock
     private var lastNotificationTimes: [String: Date] = [:]
+    /// Lock for thread-safe access to lastNotificationTimes
+    private let notificationLock = NSLock()
     /// Cooldown period between notifications of the same type
     private let cooldownInterval: TimeInterval = Constants.Notifications.cooldownInterval
 
@@ -147,6 +150,9 @@ class NotificationManager: NSObject, ObservableObject {
     private func canSendNotification(accountId: UUID, type: NotificationType) -> Bool {
         let key = cooldownKey(accountId: accountId, type: type)
 
+        notificationLock.lock()
+        defer { notificationLock.unlock() }
+
         guard let lastSent = lastNotificationTimes[key] else {
             // Never sent this notification type for this account, so we can send
             return true
@@ -162,6 +168,10 @@ class NotificationManager: NSObject, ObservableObject {
     ///   - type: The notification type
     private func recordNotificationSent(accountId: UUID, type: NotificationType) {
         let key = cooldownKey(accountId: accountId, type: type)
+
+        notificationLock.lock()
+        defer { notificationLock.unlock() }
+
         lastNotificationTimes[key] = Date()
     }
 

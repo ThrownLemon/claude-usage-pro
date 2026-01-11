@@ -71,19 +71,6 @@ enum Log {
         static let cache = "Cache"
     }
 
-    // MARK: - Privacy Helpers
-
-    /// Mask an email address for privacy (e.g., "user@example.com" -> "u***@example.com")
-    private static func maskEmail(_ email: String) -> String {
-        guard let atIndex = email.firstIndex(of: "@") else { return "***" }
-        let localPart = email[..<atIndex]
-        let domain = email[atIndex...]
-        if localPart.count <= 1 {
-            return "*\(domain)"
-        }
-        return "\(localPart.first!)***\(domain)"
-    }
-
     // MARK: - Logging Methods
 
     /// Log debug message (only when debug mode is enabled)
@@ -204,8 +191,8 @@ enum Log {
             ║ 📈 Weekly:   \(weeklyPct)% │ Reset: \(usageData.weeklyResetDisplay)
             ║ 👤 Tier:     \(tierDisplay)
             """
-            if let email = usageData.email {
-                output += "\n║ 📧 Email:    \(maskEmail(email))"
+            if usageData.email != nil {
+                output += "\n║ 📧 Email:    [redacted]"
             }
 
         case .cursor:
@@ -216,8 +203,8 @@ enum Log {
             ║ 📊 Requests: \(used) / \(limit) (\(sessionPct)%)
             ║ 👤 Plan:     \(usageData.planType ?? "Pro")
             """
-            if let email = usageData.email {
-                output += "\n║ 📧 Email:    \(maskEmail(email))"
+            if usageData.email != nil {
+                output += "\n║ 📧 Email:    [redacted]"
             }
 
         case .glm:

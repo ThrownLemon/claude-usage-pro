@@ -616,12 +616,19 @@ struct AddAccountView: View {
         do {
             let service = AnthropicOAuthService()
             _ = try await service.fetchUsage(token: token)
+
+            // Check for cancellation before updating state
+            guard !Task.isCancelled else { return }
+
             if onClaudeOAuth(token) {
                 claudeOAuthTokenInput = ""
             } else {
                 errorMessage = "This account has already been added"
             }
         } catch {
+            // Check for cancellation before updating state
+            guard !Task.isCancelled else { return }
+
             errorMessage = "Could not validate token. Please check and try again."
         }
 
@@ -743,6 +750,10 @@ struct AddAccountView: View {
 
         do {
             let isValid = try await AppState.validateGLMToken(token)
+
+            // Check for cancellation before updating state
+            guard !Task.isCancelled else { return }
+
             if isValid {
                 onGLM(token)
                 glmTokenInput = ""
@@ -750,7 +761,15 @@ struct AddAccountView: View {
                 errorMessage = "Invalid API token. Please check and try again."
             }
         } catch {
-            errorMessage = error.localizedDescription
+            // Check for cancellation before updating state
+            guard !Task.isCancelled else { return }
+
+            // Distinguish GLMTrackerError types for better error messages
+            if let glmError = error as? GLMTrackerError {
+                errorMessage = glmError.localizedDescription
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
 
         isValidating = false

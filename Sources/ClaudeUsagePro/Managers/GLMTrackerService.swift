@@ -164,7 +164,10 @@ class GLMTrackerService {
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw GLMTrackerError.badResponse(statusCode: 0)
+            let responseType = type(of: response)
+            Log.error(category, "Unexpected response type: \(responseType)")
+            throw GLMTrackerError.fetchFailed(NSError(domain: "GLMTracker", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Received non-HTTP response of type \(responseType)"]))
         }
 
         guard httpResponse.statusCode == 200 else {
@@ -204,9 +207,14 @@ class GLMTrackerService {
                     if let current = limit.currentValue, let total = limit.total {
                         monthlyUsed = current
                         monthlyLimit = total
+                    } else if let usage = limit.usage, let total = limit.total {
+                        // When usage field is present, it represents current usage
+                        monthlyUsed = usage
+                        monthlyLimit = total
                     } else if let usage = limit.usage {
-                        monthlyUsed = limit.currentValue ?? 0
-                        monthlyLimit = usage
+                        // Fallback: if we only have usage without total, use it as used with percentage
+                        monthlyUsed = usage
+                        monthlyLimit = monthlyPercentage > 0 ? usage / (monthlyPercentage / 100.0) : 0
                     } else if let details = limit.usageDetails, !details.isEmpty,
                           let current = details.first?.currentValue, let total = details.first?.total {
                         monthlyUsed = current
@@ -262,7 +270,10 @@ class GLMTrackerService {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw GLMTrackerError.badResponse(statusCode: 0)
+            let responseType = type(of: response)
+            Log.error(category, "Unexpected response type in fetchModelUsage: \(responseType)")
+            throw GLMTrackerError.fetchFailed(NSError(domain: "GLMTracker", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Received non-HTTP response of type \(responseType)"]))
         }
 
         guard httpResponse.statusCode == 200 else {
@@ -301,7 +312,10 @@ class GLMTrackerService {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw GLMTrackerError.badResponse(statusCode: 0)
+            let responseType = type(of: response)
+            Log.error(category, "Unexpected response type in fetchToolUsage: \(responseType)")
+            throw GLMTrackerError.fetchFailed(NSError(domain: "GLMTracker", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Received non-HTTP response of type \(responseType)"]))
         }
 
         guard httpResponse.statusCode == 200 else {
