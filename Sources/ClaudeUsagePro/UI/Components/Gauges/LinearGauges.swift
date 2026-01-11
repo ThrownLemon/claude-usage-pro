@@ -19,7 +19,7 @@ struct LinearBarGauge: View {
                 // Progress fill
                 RoundedRectangle(cornerRadius: 4)
                     .fill(progressFill)
-                    .frame(width: max(0, geometry.size.width * percentage))
+                    .frame(width: geometry.size.width * min(1.0, max(0.0, percentage)))
                     .animation(.easeInOut(duration: theme.components.animationDuration), value: percentage)
             }
         }

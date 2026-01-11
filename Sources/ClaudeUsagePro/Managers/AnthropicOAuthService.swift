@@ -127,18 +127,19 @@ struct OAuthProfileResponse: Codable {
 actor AnthropicOAuthService {
     private let category = Log.Category.api
 
-    private let baseURL = "https://api.anthropic.com"
-    private let usagePath = "/api/oauth/usage"
-    private let profilePath = "/api/oauth/profile"
-    private let tokenURL = "https://console.anthropic.com/v1/oauth/token"
-    private let clientId = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-    private let anthropicBetaHeader = "oauth-2025-04-20"
-    private let userAgent = "claude-code/2.0.32"
+    // API Configuration (from Constants)
+    private var baseURL: String { Constants.AnthropicAPI.baseURL }
+    private var usagePath: String { Constants.AnthropicAPI.usagePath }
+    private var profilePath: String { Constants.AnthropicAPI.profilePath }
+    private var tokenURL: String { Constants.OAuth.tokenURL }
+    private var clientId: String { Constants.OAuth.clientId }
+    private var anthropicBetaHeader: String { Constants.AnthropicAPI.betaHeader }
+    private var userAgent: String { Constants.AnthropicAPI.userAgent }
 
-    /// Retry configuration
-    private let maxRetries = 3
-    private let baseBackoffSeconds: Double = 1.0
-    private let rateLimitBackoffSeconds: Double = 5.0
+    // Retry Configuration (from Constants)
+    private var maxRetries: Int { Constants.AnthropicAPI.maxRetries }
+    private var baseBackoffSeconds: Double { Constants.AnthropicAPI.baseBackoffSeconds }
+    private var rateLimitBackoffSeconds: Double { Constants.AnthropicAPI.rateLimitBackoffSeconds }
 
     /// Map organization_type to display name
     private let planTypeMap: [String: String] = [
@@ -394,16 +395,27 @@ actor AnthropicOAuthService {
 
     // MARK: - Date Formatting
 
-    private func formatResetTime(isoDate: String) -> String {
+    /// Shared ISO8601 date parser with fallback for fractional seconds
+    private static let iso8601Formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoDate) else {
-            // Try without fractional seconds
-            formatter.formatOptions = [.withInternetDateTime]
-            guard let date = formatter.date(from: isoDate) else {
-                return isoDate
-            }
-            return formatTimeRemaining(date)
+        return formatter
+    }()
+
+    private static let iso8601FallbackFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    /// Parse an ISO8601 date string, trying with and without fractional seconds
+    private func parseISO8601Date(_ isoDate: String) -> Date? {
+        Self.iso8601Formatter.date(from: isoDate) ?? Self.iso8601FallbackFormatter.date(from: isoDate)
+    }
+
+    private func formatResetTime(isoDate: String) -> String {
+        guard let date = parseISO8601Date(isoDate) else {
+            return isoDate
         }
         return formatTimeRemaining(date)
     }
@@ -418,22 +430,19 @@ actor AnthropicOAuthService {
     }
 
     private func formatResetDate(isoDate: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: isoDate) else {
-            // Try without fractional seconds
-            formatter.formatOptions = [.withInternetDateTime]
-            guard let date = formatter.date(from: isoDate) else {
-                return isoDate
-            }
-            return formatDateDisplay(date)
+        guard let date = parseISO8601Date(isoDate) else {
+            return isoDate
         }
         return formatDateDisplay(date)
     }
 
+    private static let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "E h:mm a"
+        return formatter
+    }()
+
     private func formatDateDisplay(_ date: Date) -> String {
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateFormat = "E h:mm a"
-        return displayFormatter.string(from: date)
+        Self.displayDateFormatter.string(from: date)
     }
 }

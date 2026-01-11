@@ -5,6 +5,7 @@ import os
 
 /// Service for fetching Claude.ai usage data using a hidden WKWebView.
 /// Injects JavaScript to call Claude's internal APIs and parse responses.
+@MainActor
 class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
     private let category = Log.Category.tracker
     /// The hidden WebView used for API calls
@@ -25,7 +26,10 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
     var onPingComplete: ((Bool) -> Void)?
 
     deinit {
-        cleanup()
+        // deinit runs on the main actor for @MainActor classes on macOS 14+
+        MainActor.assumeIsolated {
+            cleanup()
+        }
     }
 
     /// Clean up WKWebView resources to prevent memory leaks

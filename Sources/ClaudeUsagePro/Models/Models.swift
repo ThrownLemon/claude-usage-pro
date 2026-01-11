@@ -212,7 +212,7 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
             }
             if let token = try KeychainService.loadString(forKey: KeychainService.oauthTokenKey(for: id)) {
                 oauthToken = token
-                Log.debug(Log.Category.keychain, "  Loaded OAuth token (prefix: \(token.prefix(15))...)")
+                Log.debug(Log.Category.keychain, "  Loaded OAuth token (prefix: \(token.prefix(8))...)")
             }
             if let refreshToken = try KeychainService.loadString(forKey: KeychainService.oauthRefreshTokenKey(for: id)) {
                 oauthRefreshToken = refreshToken

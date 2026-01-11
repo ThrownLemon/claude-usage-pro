@@ -24,6 +24,24 @@ enum CardDensity: String, Codable, CaseIterable {
     case normal
     /// More breathing room, larger visualizations
     case expanded
+
+    /// Multiplier for padding based on density
+    var paddingMultiplier: CGFloat {
+        switch self {
+        case .compact: return 0.75
+        case .normal: return 1.0
+        case .expanded: return 1.25
+        }
+    }
+
+    /// Multiplier for gauge size based on density
+    var gaugeSizeMultiplier: CGFloat {
+        switch self {
+        case .compact: return 0.85
+        case .normal: return 1.0
+        case .expanded: return 1.15
+        }
+    }
 }
 
 /// Layout arrangement for multiple gauges (weekly + sonnet)
@@ -211,36 +229,18 @@ struct ThemeLayout: Equatable {
 
     /// Effective padding based on density
     var effectivePadding: EdgeInsets {
-        switch cardDensity {
-        case .compact:
-            return EdgeInsets(
-                top: contentPadding.top * 0.75,
-                leading: contentPadding.leading * 0.75,
-                bottom: contentPadding.bottom * 0.75,
-                trailing: contentPadding.trailing * 0.75
-            )
-        case .normal:
-            return contentPadding
-        case .expanded:
-            return EdgeInsets(
-                top: contentPadding.top * 1.25,
-                leading: contentPadding.leading * 1.25,
-                bottom: contentPadding.bottom * 1.25,
-                trailing: contentPadding.trailing * 1.25
-            )
-        }
+        let multiplier = cardDensity.paddingMultiplier
+        return EdgeInsets(
+            top: contentPadding.top * multiplier,
+            leading: contentPadding.leading * multiplier,
+            bottom: contentPadding.bottom * multiplier,
+            trailing: contentPadding.trailing * multiplier
+        )
     }
 
     /// Effective gauge size based on density
     func effectiveWeeklyGaugeSize(for density: CardDensity? = nil) -> CGFloat {
         let targetDensity = density ?? cardDensity
-        switch targetDensity {
-        case .compact:
-            return weeklyGaugeSize * 0.85
-        case .normal:
-            return weeklyGaugeSize
-        case .expanded:
-            return weeklyGaugeSize * 1.15
-        }
+        return weeklyGaugeSize * targetDensity.gaugeSizeMultiplier
     }
 }

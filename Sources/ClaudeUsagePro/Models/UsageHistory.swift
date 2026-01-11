@@ -40,11 +40,7 @@ actor UsageHistoryStore {
     ///   - usageData: The current usage data
     ///   - accountId: The account's unique identifier
     func record(_ usageData: UsageData, for accountId: UUID) {
-        let dataPoint = UsageDataPoint(
-            sessionPercentage: usageData.sessionPercentage,
-            weeklyPercentage: usageData.weeklyPercentage,
-            sonnetPercentage: usageData.sonnetPercentage
-        )
+        let dataPoint = usageData.toDataPoint()
 
         var accountHistory = history[accountId] ?? []
         accountHistory.append(dataPoint)

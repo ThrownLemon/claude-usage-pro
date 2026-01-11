@@ -26,7 +26,7 @@ struct CircularFullGauge: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(theme.gaugeIconColor ?? color)
                     } else if theme.components.showPercentageInGauge {
-                        Text(formatPercentage(percentage))
+                        Text(percentage.formattedPercentage)
                             .font(theme.fontConfig.numberFont(size: 9, weight: .bold))
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
@@ -48,10 +48,6 @@ struct CircularFullGauge: View {
         }
         .frame(width: 72)
         .fixedSize()
-    }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
     }
 }
 
@@ -98,7 +94,7 @@ struct CircularArcGauge: View {
                     .animation(.easeInOut(duration: theme.components.animationDuration), value: percentage)
 
                 // Center text
-                Text(formatPercentage(percentage))
+                Text(percentage.formattedPercentage)
                     .font(theme.fontConfig.numberFont(size: 11, weight: .bold))
                     .foregroundColor(theme.primaryText(for: colorScheme))
             }
@@ -113,10 +109,6 @@ struct CircularArcGauge: View {
         }
         .frame(width: 72)
         .fixedSize()
-    }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
     }
 }
 
@@ -143,8 +135,7 @@ struct CircularSegmentedGauge: View {
                 ForEach(0..<segmentCount, id: \.self) { index in
                     SegmentArc(
                         index: index,
-                        total: segmentCount,
-                        isFilled: Double(index) / Double(segmentCount) < percentage
+                        total: segmentCount
                     )
                     .stroke(
                         Double(index) / Double(segmentCount) < percentage ? color : color.opacity(0.2),
@@ -154,7 +145,7 @@ struct CircularSegmentedGauge: View {
                 }
 
                 // Center percentage
-                Text(formatPercentage(percentage))
+                Text(percentage.formattedPercentage)
                     .font(theme.fontConfig.numberFont(size: 10, weight: .bold))
                     .foregroundColor(theme.primaryText(for: colorScheme))
             }
@@ -170,17 +161,12 @@ struct CircularSegmentedGauge: View {
         .frame(width: 72)
         .fixedSize()
     }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
-    }
 }
 
 /// Helper shape for drawing segment arcs
 struct SegmentArc: Shape {
     let index: Int
     let total: Int
-    let isFilled: Bool
 
     func path(in rect: CGRect) -> Path {
         let gapAngle: Double = 3  // Gap between segments in degrees
@@ -233,7 +219,7 @@ struct RingGauge: View {
                     .animation(.easeInOut(duration: theme.components.animationDuration), value: percentage)
 
                 // Center percentage
-                Text(formatPercentage(percentage))
+                Text(percentage.formattedPercentage)
                     .font(theme.fontConfig.numberFont(size: 11, weight: .semibold))
                     .foregroundColor(theme.primaryText(for: colorScheme))
             }
@@ -247,9 +233,5 @@ struct RingGauge: View {
         }
         .frame(width: 72)
         .fixedSize()
-    }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
     }
 }

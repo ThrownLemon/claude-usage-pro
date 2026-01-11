@@ -1,6 +1,6 @@
 # AI Usage Pro
 
-![macOS](https://img.shields.io/badge/platform-macOS%2013%2B-blue)
+![macOS](https://img.shields.io/badge/platform-macOS%2014%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -21,7 +21,7 @@ Whether you're managing a single Claude account or juggling multiple accounts ac
 
 ## Requirements
 
-- **macOS 13 (Ventura) or later** – The app requires macOS 13+ to run
+- **macOS 14 (Sonoma) or later** – The app requires macOS 14+ to run
 - **Swift 5.9+** – Required for building from source
 - **Xcode 15+** (optional) – Recommended for development, but not required for building with Swift CLI
 

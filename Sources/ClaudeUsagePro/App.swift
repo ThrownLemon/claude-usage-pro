@@ -1092,7 +1092,7 @@ struct ContentView: View {
             .padding(12)
             .background(theme.headerBackground(for: colorScheme))
         }
-        .frame(width: 405, height: 660)
+        .frame(width: Constants.WindowSize.width, height: Constants.WindowSize.height)
         .background(
             Group {
                 // Use theme background image if available, otherwise fallback to theme solid color/Material default

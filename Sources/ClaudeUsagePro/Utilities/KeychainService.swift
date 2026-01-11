@@ -49,7 +49,7 @@ struct KeychainService {
         try delete(forKey: key)
 
         // Legacy keychain cleanup is best-effort (may not exist, different error handling)
-        try? deleteFromLegacyKeychain(forKey: key)
+        deleteFromLegacyKeychain(forKey: key)
 
         // Try saving to data protection keychain first
         let dataProtectionQuery: [String: Any] = [
@@ -90,13 +90,15 @@ struct KeychainService {
     }
 
     /// Delete from legacy (non-data-protection) keychain
-    private static func deleteFromLegacyKeychain(forKey key: String) throws {
+    /// Best-effort deletion - ignores errors since legacy items may not exist
+    private static func deleteFromLegacyKeychain(forKey key: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key
         ]
-        SecItemDelete(query as CFDictionary)
+        // Ignore result - legacy items may not exist
+        _ = SecItemDelete(query as CFDictionary)
     }
 
     /// Load data from the Keychain

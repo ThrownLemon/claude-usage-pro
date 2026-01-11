@@ -67,7 +67,7 @@ struct ClaudeCodeKeychainReader {
     private static func readClaudeCodeCredentials() throws -> String {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "Claude Code-credentials",
+            kSecAttrService as String: primaryService,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]

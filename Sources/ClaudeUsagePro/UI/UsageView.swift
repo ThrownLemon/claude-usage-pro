@@ -626,7 +626,7 @@ struct WeeklyGaugeView: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(theme.gaugeIconColor ?? color)
                     } else {
-                        Text(formatPercentage(percentage))
+                        Text(percentage.formattedPercentage)
                             .font(theme.fontConfig.numberFont(size: 9, weight: .bold))
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
@@ -649,10 +649,6 @@ struct WeeklyGaugeView: View {
         .frame(width: 72)
         .fixedSize()
     }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
-    }
 }
 
 /// Custom themed progress bar with gradient support
@@ -672,7 +668,7 @@ struct ThemedProgressBar: View {
                 // Progress fill
                 RoundedRectangle(cornerRadius: 4)
                     .fill(progressFill)
-                    .frame(width: max(0, geometry.size.width * percentage))
+                    .frame(width: geometry.size.width * min(1.0, max(0.0, percentage)))
             }
         }
         .frame(height: 8)

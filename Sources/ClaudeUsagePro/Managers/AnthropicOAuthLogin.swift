@@ -9,18 +9,13 @@ import os
 class AnthropicOAuthLogin: ObservableObject {
     private let category = Log.Category.auth
 
-    // MARK: - OAuth Configuration
+    // MARK: - OAuth Configuration (from Constants)
 
-    /// The OAuth client ID for Claude
-    private let clientId = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-    /// Authorization URL
-    private let authURL = "https://claude.ai/oauth/authorize"
-    /// Token exchange endpoint
-    private let tokenURL = "https://console.anthropic.com/v1/oauth/token"
-    /// The redirect URI Anthropic expects
-    private let redirectURI = "https://console.anthropic.com/oauth/code/callback"
-    /// OAuth scopes to request
-    private let scopes = "org:create_api_key user:profile user:inference"
+    private var clientId: String { Constants.OAuth.clientId }
+    private var authURL: String { Constants.OAuth.authURL }
+    private var tokenURL: String { Constants.OAuth.tokenURL }
+    private var redirectURI: String { Constants.OAuth.redirectURI }
+    private var scopes: String { Constants.OAuth.scopes }
 
     // MARK: - PKCE State
     // Note: In Claude's OAuth, the state parameter IS the code verifier
@@ -199,6 +194,7 @@ class AnthropicOAuthLogin: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = Constants.Timeouts.networkRequestTimeout
 
         // Build JSON body - Claude's OAuth expects JSON, not form-encoded
         var bodyParams: [String: String] = [
@@ -247,7 +243,6 @@ enum OAuthLoginError: Error, LocalizedError {
     case invalidResponse
     case httpError(statusCode: Int, message: String)
     case decodingError(Error)
-    case noAccessToken
 
     var errorDescription: String? {
         switch self {
@@ -259,8 +254,6 @@ enum OAuthLoginError: Error, LocalizedError {
             return "HTTP error \(code): \(message)"
         case .decodingError(let error):
             return "Failed to parse response: \(error.localizedDescription)"
-        case .noAccessToken:
-            return "No access token in response"
         }
     }
 }

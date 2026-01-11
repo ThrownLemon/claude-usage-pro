@@ -193,12 +193,12 @@ struct BarSparklineView: View {
                     }
                 }
             } else {
-                // Placeholder
+                // Placeholder with deterministic heights based on index
                 HStack(spacing: 2) {
-                    ForEach(0..<12, id: \.self) { _ in
+                    ForEach(0..<12, id: \.self) { index in
                         RoundedRectangle(cornerRadius: 1)
                             .fill(color.opacity(0.2))
-                            .frame(height: CGFloat.random(in: 4...height * 0.6))
+                            .frame(height: placeholderBarHeight(index: index, maxHeight: height * 0.6))
                     }
                 }
             }
@@ -214,5 +214,13 @@ struct BarSparklineView: View {
         } else {
             return theme.totalGaugeCritical
         }
+    }
+
+    /// Generates deterministic placeholder bar heights using a simple hash
+    private func placeholderBarHeight(index: Int, maxHeight: CGFloat) -> CGFloat {
+        // Use a simple deterministic pattern based on index
+        let pattern: [CGFloat] = [0.3, 0.5, 0.4, 0.7, 0.6, 0.8, 0.5, 0.9, 0.4, 0.6, 0.7, 0.5]
+        let normalizedValue = pattern[index % pattern.count]
+        return max(4, maxHeight * normalizedValue)
     }
 }

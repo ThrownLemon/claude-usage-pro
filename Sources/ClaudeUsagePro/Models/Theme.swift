@@ -347,8 +347,9 @@ struct ThemeColors {
 
 /// Theme manager providing colors and styling for the current theme
 struct ThemeManager {
-    static let themeKey = "selectedTheme"
-    static let colorSchemeModeKey = "colorSchemeMode"
+    // Use centralized keys from Constants (static for @AppStorage compatibility)
+    static let themeKey = Constants.UserDefaultsKeys.selectedTheme
+    static let colorSchemeModeKey = Constants.UserDefaultsKeys.colorSchemeMode
 
     /// Get the current theme from UserDefaults
     static var current: AppTheme {
@@ -1133,13 +1134,15 @@ extension View {
                 .mask(RoundedRectangle(cornerRadius: theme.cornerRadius))
             )
         case .stars:
-            // Simple static star overlay for now
+            // Deterministic star positions using seeded RNG to prevent flickering
             self.overlay(
                 GeometryReader { _ in
                     Canvas { context, size in
+                        // Use a seeded random generator for deterministic positions
+                        var rng = SeededRandomNumberGenerator(seed: 42)
                         for _ in 0..<30 {
-                            let x = Double.random(in: 0...size.width)
-                            let y = Double.random(in: 0...size.height)
+                            let x = Double.random(in: 0...size.width, using: &rng)
+                            let y = Double.random(in: 0...size.height, using: &rng)
                             context.fill(
                                 Path(ellipseIn: CGRect(x: x, y: y, width: 2, height: 2)),
                                 with: .color(.white.opacity(0.4)))
@@ -1163,5 +1166,23 @@ extension View {
                     .allowsHitTesting(false)
             )
         }
+    }
+}
+
+// MARK: - Seeded Random Number Generator
+
+/// A deterministic random number generator using a linear congruential generator algorithm.
+/// Used to generate consistent pseudo-random positions for star overlays.
+private struct SeededRandomNumberGenerator: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        state = seed
+    }
+
+    mutating func next() -> UInt64 {
+        // Linear congruential generator parameters (same as glibc)
+        state = state &* 6364136223846793005 &+ 1442695040888963407
+        return state
     }
 }

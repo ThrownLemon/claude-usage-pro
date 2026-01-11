@@ -18,7 +18,7 @@ struct NumericLargeGauge: View {
                 .textCase(.uppercase)
                 .tracking(theme.fontConfig.letterSpacing)
 
-            Text(formatPercentage(percentage))
+            Text(percentage.formattedPercentage)
                 .font(theme.fontConfig.numberFont(size: 28, weight: .light))
                 .foregroundColor(color)
                 .contentTransition(.numericText())
@@ -32,7 +32,7 @@ struct NumericLargeGauge: View {
 
                     RoundedRectangle(cornerRadius: 1)
                         .fill(color)
-                        .frame(width: geometry.size.width * percentage)
+                        .frame(width: geometry.size.width * min(1.0, max(0.0, percentage)))
                         .animation(.easeInOut(duration: theme.components.animationDuration), value: percentage)
                 }
             }
@@ -40,10 +40,6 @@ struct NumericLargeGauge: View {
             .frame(maxWidth: 60)
         }
         .frame(width: 80)
-    }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
     }
 }
 
@@ -106,15 +102,11 @@ struct NumericMinimalGauge: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        Text(formatPercentage(percentage))
+        Text(percentage.formattedPercentage)
             .font(theme.fontConfig.numberFont(size: 14, weight: .semibold))
             .foregroundColor(color)
             .contentTransition(.numericText())
             .animation(.easeInOut(duration: theme.components.animationDuration), value: percentage)
-    }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
     }
 }
 
@@ -142,19 +134,15 @@ struct InlinePercentageGauge: View {
 
                     RoundedRectangle(cornerRadius: 2)
                         .fill(color)
-                        .frame(width: geometry.size.width * percentage)
+                        .frame(width: geometry.size.width * min(1.0, max(0.0, percentage)))
                 }
             }
             .frame(width: 40, height: 4)
 
-            Text(formatPercentage(percentage))
+            Text(percentage.formattedPercentage)
                 .font(theme.fontConfig.numberFont(size: 11, weight: .semibold))
                 .foregroundColor(color)
                 .frame(width: 32, alignment: .trailing)
         }
-    }
-
-    private func formatPercentage(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
     }
 }

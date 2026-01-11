@@ -153,12 +153,13 @@ struct GaugeComponentConfig: Equatable {
         self.weeklyGaugeStyle = weeklyGaugeStyle
         self.sonnetGaugeStyle = sonnetGaugeStyle
         self.showSparkline = showSparkline
-        self.sparklineDataPoints = sparklineDataPoints
+        // Validate numerical inputs to ensure sensible ranges
+        self.sparklineDataPoints = max(1, min(sparklineDataPoints, 100))
         self.animateChanges = animateChanges
-        self.animationDuration = animationDuration
+        self.animationDuration = max(0.0, min(animationDuration, 5.0))
         self.showPercentageInGauge = showPercentageInGauge
-        self.segmentCount = segmentCount
-        self.ledBlockCount = ledBlockCount
+        self.segmentCount = max(1, min(segmentCount, 100))
+        self.ledBlockCount = max(1, min(ledBlockCount, 100))
     }
 
     // MARK: - Presets

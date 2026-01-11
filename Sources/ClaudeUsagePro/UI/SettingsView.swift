@@ -245,10 +245,10 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Button("Open Console") {
-                                NSWorkspace.shared.open(
-                                    URL(
-                                        fileURLWithPath:
-                                            "/System/Applications/Utilities/Console.app"))
+                                // Use bundle identifier for robustness across macOS versions
+                                if let consoleURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Console") {
+                                    NSWorkspace.shared.open(consoleURL)
+                                }
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
