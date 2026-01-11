@@ -1443,6 +1443,8 @@ class AppState {
     /// - Parameter token: The API token to validate
     /// - Returns: True if the token is valid and can fetch usage data
     /// - Throws: GLMTrackerError if the validation fails
+    /// - Note: Explicitly marked @MainActor to ensure callers resume on main thread after await
+    @MainActor
     static func validateGLMToken(_ token: String) async throws -> Bool {
         let tracker = GLMTrackerService()
         let info = try await tracker.fetchGLMUsage(apiToken: token)
