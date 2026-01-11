@@ -102,7 +102,12 @@ class NotificationManager: NSObject, ObservableObject {
     ///   - type: The type of notification to build
     ///   - accountName: The name of the account this notification is for
     ///   - thresholdPercent: The threshold percentage to display (for threshold notifications)
-    /// - Returns: A NotificationContent struct with title, body, and identifier
+    /// Builds the user-facing notification content for the specified notification type and account.
+    /// - Parameters:
+    ///   - type: The kind of notification to create (e.g., usage threshold, session ready, re-authentication).
+    ///   - accountName: The human-readable account name inserted into the notification body.
+    ///   - thresholdPercent: Optional percentage to include for threshold notifications; defaults to 75 when not provided.
+    /// - Returns: A `NotificationContent` containing the localized title, body (including `accountName` and any threshold), and the notification type's identifier.
     func buildNotificationContent(
         type: NotificationType,
         accountName: String,

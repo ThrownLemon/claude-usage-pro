@@ -40,14 +40,19 @@ enum DateFormattingHelper {
 
     /// Parse an ISO8601 date string, trying with and without fractional seconds.
     /// - Parameter isoDate: The ISO8601 formatted date string
-    /// - Returns: The parsed Date, or nil if parsing failed
+    /// Attempts to parse an ISO 8601 formatted string into a `Date`.
+    /// - Parameter isoDate: The ISO 8601 date string to parse.
+    /// - Returns: A `Date` parsed from `isoDate`, or `nil` if parsing fails.
     static func parseISO8601(_ isoDate: String) -> Date? {
         iso8601Formatter.date(from: isoDate) ?? iso8601FallbackFormatter.date(from: isoDate)
     }
 
     /// Formats an ISO date string into a human-readable time remaining string.
     /// - Parameter isoDate: ISO 8601 formatted date string
-    /// - Returns: Formatted string like "3h 21m" or "Ready" if time has passed
+    /// Formats an ISO8601 timestamp into a human-readable remaining time until that date.
+    /// - Parameters:
+    ///   - isoDate: An ISO8601-formatted date string.
+    /// - Returns: The original `isoDate` if parsing fails; otherwise a compact remaining-time string such as `"2h 15m"`, or `Constants.Status.ready` if the date is in the past or now.
     static func formatResetTime(isoDate: String) -> String {
         guard let date = parseISO8601(isoDate) else { return isoDate }
         return formatTimeRemaining(date)
@@ -55,7 +60,10 @@ enum DateFormattingHelper {
 
     /// Formats a Date into a human-readable time remaining string.
     /// - Parameter date: The target date
-    /// - Returns: Formatted string like "3h 21m" or "Ready" if time has passed
+    /// Formats the interval from now until a target date as a concise hours/minutes string.
+    /// Returns `Constants.Status.ready` when the target date is now or in the past; otherwise returns a string in the form `"<hours>h <minutes>m"`.
+    /// - Parameter date: The target date to measure time remaining until.
+    /// - Returns: `Constants.Status.ready` if `date` is less than or equal to now, otherwise a string like `"2h 15m"` representing the remaining time.
     static func formatTimeRemaining(_ date: Date) -> String {
         let diff = date.timeIntervalSinceNow
         if diff <= 0 { return Constants.Status.ready }
@@ -67,7 +75,9 @@ enum DateFormattingHelper {
 
     /// Formats an ISO date string into a human-readable date display.
     /// - Parameter isoDate: ISO 8601 formatted date string
-    /// - Returns: Formatted string like "Thu 8:59 PM"
+    /// Formats an ISO8601 date string into a user-facing display date.
+    /// - Parameter isoDate: An ISO8601-formatted date/time string.
+    /// - Returns: A formatted display string (e.g., "Thu 8:59 PM") if parsing succeeds, otherwise the original `isoDate`.
     static func formatResetDate(isoDate: String) -> String {
         guard let date = parseISO8601(isoDate) else { return isoDate }
         return formatDateDisplay(date)
@@ -75,7 +85,8 @@ enum DateFormattingHelper {
 
     /// Formats a Date into a display string.
     /// - Parameter date: The date to format
-    /// - Returns: Formatted string like "Thu 8:59 PM"
+    /// Formats a Date for user-facing display using the shared display formatter.
+    /// - Returns: The date as a localized display string (for example, "Thu 8:59 PM").
     static func formatDateDisplay(_ date: Date) -> String {
         displayFormatterLock.lock()
         defer { displayFormatterLock.unlock() }

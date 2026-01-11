@@ -349,6 +349,12 @@ actor AnthropicOAuthService {
         }
     }
 
+    /// Builds a UsageData value from an OAuth usage response and an optional plan type.
+    /// 
+    /// - Parameters:
+    ///   - response: The raw OAuth usage response containing usage buckets and optional reset timestamps.
+    ///   - planType: An optional human-readable plan type to use for the tier; if `nil`, a default of "Pro" is used.
+    /// - Returns: A `UsageData` instance with fractional percentages (0.0–1.0) for session, weekly, opus, and sonnet usage; formatted reset strings for display; the resolved tier and provided `planType`; and other profile fields set to `nil` where not available.
     private func convertToUsageData(response: OAuthUsageResponse, planType: String?) -> UsageData {
         // Parse session (5-hour)
         var sessionPct = 0.0

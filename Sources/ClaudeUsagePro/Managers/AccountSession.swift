@@ -136,7 +136,10 @@ class AccountSession: Identifiable {
     }
     
     /// Sends a ping to wake up a ready session.
-    /// - Parameter isAuto: Whether this is an automatic ping (respects auto-wake setting)
+    /// Requests a session "wake" (ping) to prompt the provider to refresh usage data.
+    /// 
+    /// If `isAuto` is true the method respects the user's auto-wake setting and will do nothing when that setting is disabled. The ping is only attempted when the account's usage data indicates the session is ready (sessionPercentage == 0 and sessionReset == Constants.Status.ready). When the tracker reports a successful ping, the session data is refreshed after a short delay; failures are logged.
+    /// - Parameter isAuto: When `true`, this call is considered an automatic wake and will be skipped if the auto-wake preference is disabled.
     func ping(isAuto: Bool = false) {
         if isAuto && !UserDefaults.standard.bool(forKey: Constants.UserDefaultsKeys.autoWakeUp) {
             Log.debug(category, "Auto-ping cancelled (setting disabled)")
@@ -275,7 +278,9 @@ class AccountSession: Identifiable {
 
     /// Attempts to refresh the OAuth access token using the refresh token.
     /// If successful, updates the account and retries the fetch.
-    /// If failed, marks the account as needing re-authentication and sends notification.
+    /// Attempts to refresh the account's OAuth access token and retry usage fetch.
+    /// 
+    /// If a refresh token and OAuth service are available, performs a token refresh; on success updates the account's tokens, saves credentials to the keychain, and triggers a fresh fetch. If the refresh fails, or if no refresh token or service is present, marks the account as requiring reauthentication, records the error, and falls back to cached usage data.
     private func attemptTokenRefresh() {
         guard let refreshToken = account.oauthRefreshToken else {
             Log.warning(category, "No refresh token available for \(account.name), marking as needs re-auth")
@@ -319,7 +324,8 @@ class AccountSession: Identifiable {
         }
     }
 
-    /// Marks the account as needing re-authentication and sends a system notification.
+    /// Marks the associated account as requiring reauthentication and emits a system notification once.
+    /// - Note: If the account is already marked as needing reauthentication, this method does nothing to avoid duplicate notifications.
     private func markNeedsReauthWithNotification() {
         // Only notify if not already marked (prevents duplicate notifications)
         guard !account.needsReauth else { return }
@@ -332,7 +338,9 @@ class AccountSession: Identifiable {
         )
     }
 
-    /// Falls back to cached data when authentication fails
+    /// Loads the last known usage data for this account from the persistent cache and, if found, applies it to the account on the main actor.
+    ///
+    /// If no cached entry exists, the method does nothing.
     private func fallbackToCachedData() {
         Task { @MainActor in
             if let cached = await UsageCache.shared.getLastKnown(for: self.account.id) {
@@ -342,6 +350,11 @@ class AccountSession: Identifiable {
         }
     }
 
+    /// Handle the result of a Cursor usage fetch by updating the session state, usage data, and cache.
+    /// 
+    /// On success: updates the account's usage data (including session/weekly fields and Cursor-specific fields), caches the usage for later fallback, and may update the account's display name when an email is available.
+    /// On failure: records the error and attempts to apply the last known cached usage data as a fallback.
+    /// - Parameter result: The `Result` of a Cursor usage fetch containing either `CursorUsageInfo` on success or an `Error` on failure.
     private func handleCursorUsageResult(_ result: Result<CursorUsageInfo, Error>) {
         // Already on @MainActor, no need for DispatchQueue.main
         self.isFetching = false
@@ -388,6 +401,8 @@ class AccountSession: Identifiable {
         }
     }
 
+    /// Processes the result of a GLM usage fetch and updates the session state, account usage, and cache.
+    /// - Parameter result: A `Result` containing `GLMUsageInfo` on success or an `Error` on failure. On success the account's `usageData` is updated, the fresh usage is cached, and the account name may be adjusted; on failure `lastError` is set and the method attempts to fall back to the last known cached usage.
     private func handleGLMUsageResult(_ result: Result<GLMUsageInfo, Error>) {
         // Already on @MainActor, no need for DispatchQueue.main
         self.isFetching = false
@@ -477,11 +492,19 @@ class AccountSession: Identifiable {
         return prev < threshold && current >= threshold
     }
 
+    /// Determines whether the session transitioned from having usage to being ready.
+    /// - Parameters:
+    ///   - previousPercentage: Previous session percentage, or `nil` if unknown.
+    ///   - currentPercentage: Current session percentage.
+    ///   - currentReset: Current session reset status string.
+    /// - Returns: `true` if `previousPercentage` was greater than 0, `currentPercentage` is 0, and `currentReset` equals `Constants.Status.ready`; `false` otherwise.
     private func didTransitionToReady(previousPercentage: Double?, currentPercentage: Double, currentReset: String) -> Bool {
         guard let prev = previousPercentage else { return false }
         return prev > 0 && currentPercentage == 0 && currentReset == Constants.Status.ready
     }
 
+    /// Checks session and weekly usage against configured thresholds and sends notifications for any threshold crossings or a session-ready transition.
+    /// - Parameter usageData: The latest usage snapshot containing session and weekly percentages and reset status; used to compare against stored previous percentages and determine notification triggers.
     private func checkThresholdCrossingsAndNotify(usageData: UsageData) {
         let accountId = account.id
         let accountName = account.name

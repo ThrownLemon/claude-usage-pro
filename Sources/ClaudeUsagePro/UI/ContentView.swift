@@ -124,7 +124,13 @@ struct ContentView: View {
         showSettings || showAddAccount
     }
 
-    /// Handle back navigation
+    /// Navigates the view back one step in the current navigation state.
+    /// 
+    /// Performs the transition with animation. If the settings view is shown, it closes settings. If the add-account flow is active, it steps back within that flow:
+    /// - `.menu` closes the add-account view,
+    /// - `.claudeOptions` moves to `.menu`,
+    /// - `.claudeOAuthToken` moves to `.claudeOptions`,
+    /// - `.glmToken` moves to `.menu`.
     private func goBack() {
         withAnimation {
             if showSettings {
@@ -173,7 +179,9 @@ struct ContentView: View {
         }
     }
 
-    /// Cycle through appearance modes: system -> light -> dark -> system
+    /// Advance the app appearance mode to the next setting in the order: system → light → dark → system.
+    /// 
+    /// Updates `appearanceManager.colorSchemeMode` with the new mode's raw value.
     private func cycleAppearanceMode() {
         let nextMode: ColorSchemeMode
         switch currentAppearanceMode {
@@ -220,7 +228,7 @@ struct ContentView: View {
         }
     }
 
-    /// Cycle through available themes
+    /// Advance the app theme to the next available AppTheme (wraps to the first after the last) and update the persisted `selectedTheme`.
     private func cycleTheme() {
         let allThemes = AppTheme.allCases
         guard let currentIndex = allThemes.firstIndex(of: currentTheme) else { return }
@@ -415,7 +423,11 @@ struct ContentView: View {
         }
     }
 
-    // Request notification permission on app launch
+    /// Requests notification permission if the app has not yet asked the user.
+    /// 
+    /// When authorization is undetermined, assigns handlers on `NotificationManager.shared` to log
+    /// outcomes (granted, denied, or error) and then initiates the permission request. If the
+    /// authorization status is already known, logs the current status instead.
     @MainActor
     private func requestNotificationPermission() {
         let notificationManager = NotificationManager.shared

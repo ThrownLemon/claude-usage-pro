@@ -47,7 +47,9 @@ struct UsageData: Hashable, Codable {
 
     /// Formats a session reset string with "Resets in" prefix for consistency with GLM display.
     /// - Parameter sessionReset: The raw reset string (e.g., "3h 45m" or "Ready")
-    /// - Returns: Formatted display string (e.g., "Resets in 3h 45m" or "Ready")
+    /// Format a raw session reset string for display.
+    /// - Parameter sessionReset: The raw session reset text (may be empty or indicate readiness).
+    /// - Returns: `sessionReset` unchanged if it is empty or equals `Constants.Status.ready`; otherwise the same text prefixed with `Constants.Status.resetsInPrefix` and a space.
     static func formatSessionResetDisplay(_ sessionReset: String) -> String {
         if sessionReset == Constants.Status.ready || sessionReset.isEmpty {
             return sessionReset

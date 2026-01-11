@@ -63,7 +63,10 @@ class AppState {
     }
 
     /// Adds a new Claude account with the given authentication cookies.
-    /// - Parameter cookies: Authentication cookies from the login session
+    /// Creates and registers a new Claude account using the provided HTTP cookies.
+    /// - Parameters:
+    ///   - cookies: HTTP cookies used as authentication credentials for the new account; these are saved to the keychain.
+    /// This function persists the account list, appends a monitoring session for the new account, and starts that session's monitoring.
     func addAccount(cookies: [HTTPCookie]) {
         let newAccount = ClaudeAccount(
             id: UUID(),
@@ -88,7 +91,11 @@ class AppState {
     /// - Parameters:
     ///   - oauthToken: The OAuth token from Claude Code or manual entry
     ///   - refreshToken: Optional refresh token for obtaining new access tokens
-    /// - Returns: true if account was added, false if duplicate
+    /// Adds a Claude OAuth account, persists its credentials to the keychain, and begins monitoring the new session.
+    /// - Parameters:
+    ///   - oauthToken: The OAuth access token for the account.
+    ///   - refreshToken: An optional OAuth refresh token.
+    /// - Returns: `true` if the account was added and monitoring started, `false` if an existing account with the same OAuth token prevented addition.
     @discardableResult
     func addClaudeOAuthAccount(oauthToken: String, refreshToken: String? = nil) -> Bool {
         // Check for duplicate OAuth token
@@ -123,7 +130,13 @@ class AppState {
     /// - Parameters:
     ///   - accountId: The ID of the account to re-authenticate
     ///   - oauthToken: The new OAuth access token
-    ///   - refreshToken: Optional new refresh token
+    /// Update stored OAuth credentials for the specified account, persist them to the keychain, trigger an immediate refresh for that account, and clear any outstanding reauthentication notification.
+    /// 
+    /// If no account with `accountId` exists, the function does nothing.
+    /// - Parameters:
+    ///   - accountId: The UUID of the account whose credentials should be updated.
+    ///   - oauthToken: The new OAuth access token to store for the account.
+    ///   - refreshToken: An optional OAuth refresh token to store for the account.
     func reAuthenticateAccount(accountId: UUID, oauthToken: String, refreshToken: String? = nil) {
         guard let sessionIndex = sessions.firstIndex(where: { $0.account.id == accountId }) else {
             Log.warning(Log.Category.app, "Cannot re-authenticate: account not found")
@@ -154,12 +167,15 @@ class AppState {
         NotificationManager.shared.removeDeliveredNotification(identifier: notificationKey)
     }
 
-    /// Checks if an OAuth token is already registered
+    /// Checks whether any registered account uses the given OAuth token.
+    /// - Parameters:
+    ///   - token: The OAuth token to look for among stored account sessions.
+    /// - Returns: `true` if a session's account has the provided OAuth token, `false` otherwise.
     func hasOAuthAccount(token: String) -> Bool {
         sessions.contains { $0.account.oauthToken == token }
     }
 
-    /// Adds a new Cursor IDE monitoring account.
+    /// Adds a new "Cursor Monitoring" account, persists it, subscribes to its session changes, and starts monitoring.
     func addCursorAccount() {
         let newAccount = ClaudeAccount(
             id: UUID(),
@@ -176,7 +192,10 @@ class AppState {
     }
 
     /// Adds a new GLM Coding Plan account with the given API token.
-    /// - Parameter apiToken: The GLM API token for authentication
+    /// Adds a GLM Coding Plan account using the provided API token and begins monitoring it.
+    /// 
+    /// Creates a new account with the given token, attempts to persist the token to the Keychain (logs a warning if saving fails), stores a monitoring session, saves account state, subscribes to session changes, and starts monitoring.
+    /// - Parameter apiToken: The GLM API token to associate with the new account; persisted to the Keychain for future use.
     func addGLMAccount(apiToken: String) {
         let newAccount = ClaudeAccount(
             id: UUID(),
@@ -200,7 +219,10 @@ class AppState {
     /// - Parameter token: The API token to validate
     /// - Returns: True if the token is valid and can fetch usage data
     /// - Throws: GLMTrackerError if the validation fails
-    /// - Note: Explicitly marked @MainActor to ensure callers resume on main thread after await
+    /// Checks whether a GLM API token is valid by fetching its usage information.
+    /// - Parameter token: The GLM API token to validate.
+    /// - Returns: `true` if the token corresponds to an account with a session limit greater than 0 or a monthly limit greater than 0, `false` otherwise.
+    /// - Throws: Any error thrown while fetching usage information (for example network or authentication errors).
     @MainActor
     static func validateGLMToken(_ token: String) async throws -> Bool {
         let tracker = GLMTrackerService()
@@ -209,6 +231,8 @@ class AppState {
         return info.sessionLimit > 0 || info.monthlyLimit > 0
     }
 
+    /// Registers a session callback that updates the app state's `nextRefresh` to now plus the configured refresh interval whenever the session signals a refresh tick.
+    /// - Parameter session: The `AccountSession` whose `onRefreshTick` will trigger updating `nextRefresh`.
     private func subscribeToSessionChanges(_ session: AccountSession) {
         // With @Observable, SwiftUI automatically tracks changes to session properties
         // We just need to set up the refresh tick callback
@@ -221,7 +245,10 @@ class AppState {
     }
 
     /// Removes an account and its associated credentials.
-    /// - Parameter id: The UUID of the account to remove
+    /// Removes the account with the given identifier, deletes its stored credentials, and persists the updated account list.
+    /// 
+    /// Attempts to delete the account's credentials from the keychain; any keychain deletion failure is logged but does not prevent removing the account from in-memory state and persisted storage.
+    /// - Parameter id: The UUID of the account to remove.
     func removeAccount(id: UUID) {
         // Find the account and delete its credentials from Keychain
         guard let session = sessions.first(where: { $0.account.id == id }) else {
@@ -242,7 +269,9 @@ class AppState {
         saveAccounts()
     }
 
-    /// Triggers an immediate refresh of all account usage data.
+    /// Triggers an immediate refresh for every account session and updates the scheduled next refresh time.
+    /// 
+    /// The method instructs each active session to fetch data now and sets `nextRefresh` to the current time plus the configured refresh interval.
     func refreshAll() {
         let nextInterval = refreshIntervalSeconds()
         Log.debug(Log.Category.appState, "Refreshing all accounts... Next in \(Int(nextInterval))s")
@@ -252,7 +281,9 @@ class AppState {
         nextRefresh = Date().addingTimeInterval(nextInterval)
     }
 
-    /// Reschedules refresh timers for all sessions based on current settings.
+    /// Reschedules each account session's refresh timer and updates the nextRefresh timestamp.
+    /// 
+    /// Updates `nextRefresh` to the current time plus the configured refresh interval.
     func rescheduleAllSessions() {
         for session in sessions {
             session.scheduleRefreshTimer()
@@ -261,12 +292,16 @@ class AppState {
     }
 
     /// Returns the configured refresh interval in seconds.
-    /// - Returns: The refresh interval, or default if not configured
+    /// Returns the configured refresh interval in seconds from user defaults, or the default interval if none is set or the stored value is not greater than zero.
+    /// - Returns: The refresh interval in seconds from settings, or `Constants.Timeouts.defaultRefreshInterval` when the stored value is missing or invalid.
     func refreshIntervalSeconds() -> TimeInterval {
         let interval = defaults.double(forKey: Constants.UserDefaultsKeys.refreshInterval)
         return interval > 0 ? interval : Constants.Timeouts.defaultRefreshInterval
     }
 
+    /// Persists the current accounts (extracted from `sessions`) to UserDefaults by JSON-encoding them and saving under `accountsKey`.
+    /// 
+    /// If encoding fails the method returns without modifying UserDefaults.
     private func saveAccounts() {
         let accounts = sessions.map { $0.account }
         if let data = try? JSONEncoder().encode(accounts) {
@@ -274,6 +309,13 @@ class AppState {
         }
     }
 
+    /// Loads persisted accounts into memory and starts their monitoring lifecycle.
+    /// 
+    /// This performs a one-time migration of legacy credential storage, reads saved `ClaudeAccount`
+    /// objects from UserDefaults, clears any in-memory usage data, restores credentials from the
+    /// keychain, and creates `AccountSession` instances for each account. Each session is subscribed
+    /// for state changes and starts its monitoring/fetch cycle. If no saved accounts are found,
+    /// a log entry is written and no sessions are created.
     private func loadAccounts() {
         // First, try to migrate any legacy data from UserDefaults
         migrateCredentialsFromUserDefaults()
@@ -306,7 +348,9 @@ class AppState {
     /// Migrate credentials from old UserDefaults storage to Keychain (one-time migration)
     /// Only marks migration complete if ALL credentials are successfully migrated.
     /// If any migration fails, it will be retried on subsequent launches.
-    /// Note: Legacy UserDefaults data is intentionally preserved for manual recovery.
+    /// Migrate legacy credential data stored in UserDefaults into the Keychain.
+    /// 
+    /// If migration has already been marked complete, this method returns immediately. It reads legacy account entries from the persisted accounts key and transfers any embedded cookies and API tokens into Keychain entries keyed by each account's identifier. The original UserDefaults data is not removed to allow manual recovery. The migration-complete flag is set only when all credential migrations succeed; otherwise the migration is left incomplete so it can be retried on a subsequent launch. Logs success and failure details.
     private func migrateCredentialsFromUserDefaults() {
         // Note: migrationKey tracks whether migration has completed successfully.
         // Legacy data in accountsKey is intentionally NOT deleted to allow manual recovery.
@@ -417,7 +461,9 @@ class AppState {
     }
 
     /// Reset all app data to factory state
-    /// Clears UserDefaults, Keychain, and in-memory sessions
+    /// Resets the application to a clean state by stopping session monitoring and removing all stored credentials and settings.
+    /// 
+    /// Stops all active AccountSession monitoring, clears in-memory sessions, deletes all credentials from the Keychain, and removes the app's known UserDefaults keys (accounts, migration flag, refresh/settings, and notification preferences).
     func resetAllData() {
         Log.info(Log.Category.app, "Resetting all app data...")
 

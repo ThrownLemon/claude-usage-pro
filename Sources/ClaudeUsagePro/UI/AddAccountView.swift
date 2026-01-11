@@ -126,6 +126,9 @@ struct OAuthCodeEntryView: View {
         }
     }
 
+    /// Submits the entered OAuth authorization code to the authentication handler.
+    ///
+    /// Sends the current `codeInput` value to `oauthLogin` for exchange and further processing.
     private func submitCode() {
         oauthLogin.submitCode(codeInput)
     }
@@ -279,6 +282,13 @@ struct AddAccountView: View {
         }
     }
 
+    /// Checks the keychain for a stored Claude OAuth token and attempts to add the account.
+    /// 
+    /// While the lookup is in progress, `isCheckingKeychain` is set to `true`. If a token is found,
+    /// the `onClaudeOAuth` callback is invoked with the token; if that callback returns `false`,
+    /// `errorMessage` is set to indicate the account is already added. If no token is found or an
+    /// error occurs, `errorMessage` is set to indicate the absence of credentials. All UI state
+    /// updates are performed on the main actor.
     private func checkForClaudeCodeToken() {
         isCheckingKeychain = true
 
@@ -402,6 +412,8 @@ struct AddAccountView: View {
         }
     }
 
+    /// Validates the current Claude OAuth token and submits it to the add-account handler if valid and not a duplicate.
+    /// - Discussion: Trims the bound `claudeOAuthTokenInput`, performs an asynchronous validation, sets `isValidating` while running, updates `errorMessage` on failure or duplication, clears `claudeOAuthTokenInput` on successful submission, and respects task cancellation.
     @MainActor
     private func validateAndSubmitOAuthToken() async {
         let token = claudeOAuthTokenInput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -539,6 +551,9 @@ struct AddAccountView: View {
         }
     }
 
+    /// Validates the GLM API token in `glmTokenInput` and submits it via `onGLM` when valid.
+    /// 
+    /// Trims the current token, sets `isValidating` while validation is in progress, and clears any existing `errorMessage` before validating. If validation succeeds, calls `onGLM(_:)` with the token and clears `glmTokenInput`. If validation fails or an error is thrown, sets `errorMessage` with a user-facing description. The method observes task cancellation and will stop without mutating relevant state if the task is cancelled.
     @MainActor
     private func validateAndSubmit() async {
         let token = glmTokenInput.trimmingCharacters(in: .whitespacesAndNewlines)

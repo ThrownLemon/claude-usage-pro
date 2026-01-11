@@ -60,6 +60,9 @@ class AppearanceManager: ObservableObject {
         }
     }
 
+    /// Updates the `systemColorScheme` to reflect the app's current effective appearance.
+    /// 
+    /// Sets `systemColorScheme` to `.dark` when the app's effective appearance is the dark variant, otherwise sets it to `.light`.
     private func updateSystemColorScheme() {
         let appearance = NSApp.effectiveAppearance
         let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

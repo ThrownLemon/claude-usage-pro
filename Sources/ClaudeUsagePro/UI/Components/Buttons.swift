@@ -223,6 +223,9 @@ struct CountdownView: View {
         }
     }
 
+    /// Formats a time interval (in seconds) as a minutes:seconds string.
+    /// - Parameter timeInterval: The time interval in seconds to format.
+    /// - Returns: A string in the `MM:SS` format representing minutes and seconds.
     func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60

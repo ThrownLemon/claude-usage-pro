@@ -316,7 +316,9 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
     }
 
     /// Called when the WebView finishes loading a page.
-    /// Injects JavaScript to fetch usage data or execute ping.
+    /// Handles a finished navigation by injecting and executing JavaScript in the web view to either perform a pending ping or collect Claude usage and account metadata.
+    /// 
+    /// If a ping is pending, the method runs the ping script via `executePingScript()`. Otherwise it injects a JavaScript payload that queries organization, usage, settings, rate limit, bootstrap, statsig, and user endpoints, determines plan/tier and user identifiers, computes session/weekly (and model-specific) utilization and reset displays, constructs a `UsageData` instance, and delivers it via `onUpdate`. If the script evaluation fails the method forwards the error to `onError`.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Log.debug(category, "Page finished loading, injecting JS...")
         
