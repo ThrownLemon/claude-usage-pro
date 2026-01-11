@@ -13,6 +13,9 @@ struct SettingsView: View {
     @Environment(AppState.self) var appState
     @Environment(\.colorScheme) private var colorScheme
 
+    // Local state
+    @State private var showingResetConfirmation = false
+
     /// Current theme colors
     private var theme: ThemeColors {
         let appTheme = AppTheme(rawValue: selectedTheme) ?? .standard
@@ -329,8 +332,6 @@ struct SettingsView: View {
             Log.debug(Log.Category.settings, "SettingsView appeared")
         }
     }
-
-    @State private var showingResetConfirmation = false
 }
 
 // MARK: - Threshold Slider Component

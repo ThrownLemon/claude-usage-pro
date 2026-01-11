@@ -1438,7 +1438,8 @@ class AppState {
     static func validateGLMToken(_ token: String) async throws -> Bool {
         let tracker = GLMTrackerService()
         let info = try await tracker.fetchGLMUsage(apiToken: token)
-        return info.sessionLimit > 0 || info.monthlyLimit > 0 || info.sessionPercentage >= 0
+        // If we get here without throwing, the token is valid
+        return info.sessionLimit > 0 || info.monthlyLimit > 0
     }
 
     private func subscribeToSessionChanges(_ session: AccountSession) {
@@ -1667,7 +1668,7 @@ class AppState {
         for key in keysToRemove {
             defaults.removeObject(forKey: key)
         }
-        defaults.synchronize()
+        // Note: defaults.synchronize() is deprecated and unnecessary on modern macOS
 
         Log.info(Log.Category.app, "All app data has been reset")
     }

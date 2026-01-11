@@ -201,6 +201,31 @@ struct KeychainService {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
+    // MARK: - Non-Throwing Convenience Variants
+
+    /// Save a Codable object to the Keychain, swallowing errors.
+    /// - Parameters:
+    ///   - object: The Codable object to store
+    ///   - key: The unique key to identify this item
+    /// - Returns: true if saved successfully, false if encoding or save failed
+    @discardableResult
+    static func saveOptional<T: Encodable>(_ object: T, forKey key: String) -> Bool {
+        guard let data = try? JSONEncoder().encode(object) else {
+            return false
+        }
+        return (try? save(data, forKey: key)) != nil
+    }
+
+    /// Load a Codable object from the Keychain, swallowing errors.
+    /// - Parameter key: The unique key identifying the item
+    /// - Returns: The decoded object, or nil if not found or on any error
+    static func loadOptional<T: Decodable>(forKey key: String) -> T? {
+        guard let data = try? load(forKey: key) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(T.self, from: data)
+    }
+
     // MARK: - String Convenience
 
     /// Save a string to the Keychain
@@ -256,8 +281,10 @@ struct KeychainService {
         return "oauthRefreshToken_\(accountId.uuidString)"
     }
 
-    /// Delete all Keychain items for this app's service
-    /// - Returns: The number of items deleted, or -1 on error
+    /// Delete all Keychain items for this app's service.
+    ///
+    /// Note: SecItemDelete cannot report the actual count of deleted items.
+    /// - Returns: Status indicator: 1 = deletion succeeded, 0 = no items found, -1 = error
     @discardableResult
     static func deleteAll() -> Int {
         // Query to find all items for our service
