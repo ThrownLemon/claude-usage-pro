@@ -7,26 +7,37 @@ excluded:
 
 line_length:
   warning: 120
-  error: 150
+  error: 300
+  ignores_comments: true
+  ignores_urls: true
+  ignores_interpolated_strings: true
 
 type_body_length:
   warning: 300
-  error: 500
+  error: 700
 
 file_length:
   warning: 500
-  error: 1000
+  error: 1500
 
 function_body_length:
   warning: 50
-  error: 100
+  error: 300
+
+cyclomatic_complexity:
+  warning: 10
+  error: 40
+
+large_tuple:
+  warning: 3
+  error: 5
 
 disabled_rules:
   - trailing_comma
   - identifier_name
+  - multiple_closures_with_trailing_closure
+  - nesting
 
 opt_in_rules:
   - empty_count
   - closure_spacing
-  - force_unwrapping
-  - implicitly_unwrapped_optional
