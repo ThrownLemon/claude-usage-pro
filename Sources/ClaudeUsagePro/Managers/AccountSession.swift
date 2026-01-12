@@ -149,60 +149,37 @@ class AccountSession: Identifiable {
             }
         }
 
-        Log.debug(category, "\(isAuto ? "Auto" : "Manual") ping requested for \(account.type) account")
+        Log.debug(category, "\(isAuto ? "Auto" : "Manual") ping requested")
 
-        switch account.type {
-        case .claude:
-            // Use OAuth service for OAuth accounts, TrackerService for cookie-based accounts
-            if let oauthService, let token = account.oauthToken {
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    let success = await oauthService.pingSession(token: token)
-                    if success {
-                        Log.debug(category, "OAuth ping finished, refreshing data...")
-                        try? await Task.sleep(for: .seconds(2))
-                        fetchNow()
-                    } else {
-                        Log.error(category, "OAuth ping failed")
-                    }
-                }
-            } else if let tracker {
-                tracker.onPingComplete = { [weak self] success in
-                    guard let self else { return }
-                    if success {
-                        Log.debug(category, "Ping finished, refreshing data...")
-                        Task { @MainActor [weak self] in
-                            try? await Task.sleep(for: .seconds(2))
-                            self?.fetchNow()
-                        }
-                    } else {
-                        Log.error(category, "Ping failed")
-                    }
-                }
-                tracker.pingSession()
-            } else {
-                Log.warning(category, "Ping unavailable: no OAuth service or tracker configured")
-            }
-
-        case .glm:
-            guard let glmTracker, let apiToken = account.apiToken else {
-                Log.warning(category, "GLM ping unavailable: no tracker or API token")
-                return
-            }
+        // Use OAuth service for OAuth accounts, TrackerService for cookie-based accounts
+        if let oauthService, let token = account.oauthToken {
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let success = await glmTracker.pingSession(apiToken: apiToken)
+                let success = await oauthService.pingSession(token: token)
                 if success {
-                    Log.debug(category, "GLM ping finished, refreshing data...")
+                    Log.debug(category, "OAuth ping finished, refreshing data...")
                     try? await Task.sleep(for: .seconds(2))
                     fetchNow()
                 } else {
-                    Log.error(category, "GLM ping failed")
+                    Log.error(category, "OAuth ping failed")
                 }
             }
-
-        case .cursor:
-            Log.warning(category, "Ping not supported for Cursor accounts")
+        } else if let tracker {
+            tracker.onPingComplete = { [weak self] success in
+                guard let self else { return }
+                if success {
+                    Log.debug(category, "Ping finished, refreshing data...")
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .seconds(2))
+                        self?.fetchNow()
+                    }
+                } else {
+                    Log.error(category, "Ping failed")
+                }
+            }
+            tracker.pingSession()
+        } else {
+            Log.warning(category, "Ping unavailable: no OAuth service or tracker configured")
         }
     }
 
