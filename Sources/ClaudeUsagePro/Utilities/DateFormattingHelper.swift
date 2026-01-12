@@ -7,6 +7,7 @@ enum DateFormattingHelper {
     // MARK: - ISO8601 Parsers
 
     /// Primary ISO8601 formatter with fractional seconds support
+    /// Note: ISO8601DateFormatter is not thread-safe, so we protect access with a lock
     private static let iso8601Formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -19,6 +20,9 @@ enum DateFormattingHelper {
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
+
+    /// Lock for thread-safe access to ISO8601 formatters
+    private static let iso8601FormatterLock = NSLock()
 
     // MARK: - Display Formatters
 
@@ -42,7 +46,9 @@ enum DateFormattingHelper {
     /// - Parameter isoDate: The ISO8601 formatted date string
     /// - Returns: The parsed Date, or nil if parsing failed
     static func parseISO8601(_ isoDate: String) -> Date? {
-        iso8601Formatter.date(from: isoDate) ?? iso8601FallbackFormatter.date(from: isoDate)
+        iso8601FormatterLock.withLock {
+            iso8601Formatter.date(from: isoDate) ?? iso8601FallbackFormatter.date(from: isoDate)
+        }
     }
 
     /// Formats an ISO date string into a human-readable time remaining string.
@@ -97,10 +103,10 @@ enum DateFormattingHelper {
     ///   - timeZone: The timezone to use (defaults to current timezone)
     /// - Returns: Formatted string like "Thu 8:59 PM"
     static func formatDateDisplay(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
-        displayFormatterLock.lock()
-        defer { displayFormatterLock.unlock() }
-        displayDateFormatter.locale = locale
-        displayDateFormatter.timeZone = timeZone
-        return displayDateFormatter.string(from: date)
+        displayFormatterLock.withLock {
+            displayDateFormatter.locale = locale
+            displayDateFormatter.timeZone = timeZone
+            return displayDateFormatter.string(from: date)
+        }
     }
 }

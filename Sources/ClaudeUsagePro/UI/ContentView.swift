@@ -421,6 +421,10 @@ struct ContentView: View {
                 // Clear reAuthAccountId so next login is treated as new account
                 reAuthAccountId = nil
             }
+            oauthLogin.onLoginError = { _ in
+                // Clear reAuthAccountId on error so next login is treated as new account
+                reAuthAccountId = nil
+            }
             appState.nextRefresh = Date().addingTimeInterval(appState.refreshIntervalSeconds())
 
             // Request notification permission on first launch
@@ -431,6 +435,7 @@ struct ContentView: View {
             authManager.onLoginSuccess = nil
             oauthLogin.onLoginSuccess = nil
             oauthLogin.onLoginCancel = nil
+            oauthLogin.onLoginError = nil
         }
     }
 
