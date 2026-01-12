@@ -6,12 +6,24 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
 
       - name: Build
         run: swift build -v
@@ -22,24 +34,21 @@ jobs:
       - name: Build Release
         run: swift build -c release -v
 
+      - name: Upload Release Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build
+          path: .build/release/
+          retention-days: 7
+
   code-quality:
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Swift Lint Check
-        run: |
-          if which swiftlint > /dev/null; then
-            swiftlint lint --reporter json
-          else
-            echo "SwiftLint not installed, skipping..."
-          fi
+      - name: Install SwiftLint
+        run: brew install swiftlint
 
-      - name: SwiftFormat Check (if available)
-        run: |
-          if which swiftformat > /dev/null; then
-            swiftformat --lint Sources Tests
-          else
-            echo "SwiftFormat not installed, skipping..."
-          fi
+      - name: Run SwiftLint
+        run: swiftlint lint --reporter github-actions-logging
