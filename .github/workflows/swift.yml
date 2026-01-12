@@ -1,0 +1,52 @@
+name: Swift CI
+
+on:
+  push:
+      branches: [ main, develop ]
+        pull_request:
+            branches: [ main, develop ]
+
+            jobs:
+              build:
+                  runs-on: macos-latest
+
+                          strategy:
+                                matrix:
+                                        xcode-version: ['15.0', '15.1', '15.2', '15.3']
+
+                                                steps:
+                                                    - uses: actions/checkout@v4
+
+                                                            - name: Set up Xcode
+                                                                  run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
+                                                                          - name: Build
+                                                                                run: swift build -v
+
+                                                                                        - name: Run tests
+                                                                                              run: swift test -v
+
+                                                                                                      - name: Build Release
+                                                                                                            run: swift build -c release -v
+                                                                                                              
+                                                                                                                code-quality:
+                                                                                                                    runs-on: macos-latest
+                                                                                                                        
+                                                                                                                            steps:
+                                                                                                                                - uses: actions/checkout@v4
+                                                                                                                                    
+                                                                                                                                        - name: Swift Lint Check
+                                                                                                                                              run: |
+                                                                                                                                                      if which swiftlint > /dev/null; then
+                                                                                                                                                                swiftlint lint --reporter json
+                                                                                                                                                                        else
+                                                                                                                                                                                  echo "SwiftLint not installed, skipping..."
+                                                                                                                                                                                          fi
+                                                                                                                                                                                              
+                                                                                                                                                                                                  - name: SwiftFormat Check (if available)
+                                                                                                                                                                                                        run: |
+                                                                                                                                                                                                                if which swiftformat > /dev/null; then
+                                                                                                                                                                                                                          swiftformat --lint Sources Tests
+                                                                                                                                                                                                                                  else
+                                                                                                                                                                                                                                            echo "SwiftFormat not installed, skipping..."
+                                                                                                                                                                                                                                                    fi
