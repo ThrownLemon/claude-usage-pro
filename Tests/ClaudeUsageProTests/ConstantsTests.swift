@@ -95,14 +95,25 @@ final class ConstantsTests: XCTestCase {
     // MARK: - UserDefaults Keys Tests
 
     func testUserDefaultsKeysUnique() {
+        // Collect all UserDefaults keys from Constants and NotificationSettings
         let keys = [
+            // App settings from Constants.UserDefaultsKeys
             Constants.UserDefaultsKeys.refreshInterval,
             Constants.UserDefaultsKeys.autoWakeUp,
             Constants.UserDefaultsKeys.savedAccounts,
             Constants.UserDefaultsKeys.debugModeEnabled,
             Constants.UserDefaultsKeys.keychainMigrationComplete,
             Constants.UserDefaultsKeys.selectedTheme,
-            Constants.UserDefaultsKeys.colorSchemeMode
+            Constants.UserDefaultsKeys.colorSchemeMode,
+            // Notification settings from NotificationSettings
+            NotificationSettings.enabledKey,
+            NotificationSettings.sessionReadyEnabledKey,
+            NotificationSettings.sessionThreshold1EnabledKey,
+            NotificationSettings.sessionThreshold2EnabledKey,
+            NotificationSettings.weeklyThreshold1EnabledKey,
+            NotificationSettings.weeklyThreshold2EnabledKey,
+            NotificationSettings.threshold1ValueKey,
+            NotificationSettings.threshold2ValueKey
         ]
 
         // All keys should be unique

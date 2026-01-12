@@ -360,8 +360,6 @@ struct ContentView: View {
                 if !showSettings, !showAddAccount, !appState.sessions.isEmpty {
                     HoverIconButton(image: "arrow.clockwise", helpText: "Refresh Data Now") {
                         appState.refreshAll()
-                        appState.nextRefresh = Date().addingTimeInterval(
-                            appState.refreshIntervalSeconds())
                     }
                 }
 
@@ -399,6 +397,9 @@ struct ContentView: View {
             .ignoresSafeArea()
         )
         .onAppear {
+            // Start monitoring for all loaded accounts (safe to call multiple times)
+            appState.startMonitoringAll()
+
             authManager.onLoginSuccess = { cookies in
                 Log.info(Log.Category.app, "Login success (WebView)")
                 appState.addAccount(cookies: cookies)
@@ -412,8 +413,13 @@ struct ContentView: View {
                 } else {
                     // Adding new account
                     Log.info(Log.Category.app, "Login success (OAuth)")
-                    if !appState.addClaudeOAuthAccount(oauthToken: accessToken, refreshToken: refreshToken) {
+                    let added = appState.addClaudeOAuthAccount(oauthToken: accessToken, refreshToken: refreshToken)
+                    if !added {
                         Log.warning(Log.Category.app, "Attempted to add duplicate account via OAuth")
+                        // Show the add account view with error feedback
+                        showAddAccount = true
+                        addAccountStep = .claudeOptions
+                        oauthLogin.errorMessage = "This account has already been added"
                     }
                 }
             }
@@ -446,18 +452,22 @@ struct ContentView: View {
 
         // Only request if not determined yet
         if notificationManager.authorizationStatus == .notDetermined {
+            // Set callbacks that self-clear after invocation to avoid persisting on singleton
             notificationManager.onPermissionGranted = {
                 Log.info(Log.Category.notifications, "Permission granted")
+                NotificationManager.shared.onPermissionGranted = nil
             }
 
             notificationManager.onPermissionDenied = {
                 Log.info(Log.Category.notifications, "Permission denied by user")
+                NotificationManager.shared.onPermissionDenied = nil
             }
 
             notificationManager.onError = { error in
                 Log.error(
                     Log.Category.notifications,
                     "Error requesting permission: \(error.localizedDescription)")
+                NotificationManager.shared.onError = nil
             }
 
             notificationManager.requestPermission()

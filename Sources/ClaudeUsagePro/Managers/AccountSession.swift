@@ -78,8 +78,10 @@ class AccountSession: Identifiable {
     }
     
     deinit {
-        // Thread-safe cleanup - manual lock/unlock required here because
-        // withLock closure is nonisolated and can't access MainActor properties
+        // Thread-safe cleanup - manual lock/unlock is used here instead of withLock
+        // because we need to perform multiple operations atomically (cancel task,
+        // invalidate timer, set both to nil). The lock/defer pattern is clearer
+        // for grouping these atomic teardown steps in deinit.
         resourceLock.lock()
         defer { resourceLock.unlock() }
         _fetchTask?.cancel()

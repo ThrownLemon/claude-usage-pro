@@ -557,17 +557,14 @@ struct AddAccountView: View {
         errorMessage = nil
 
         do {
-            let isValid = try await AppState.validateGLMToken(token)
+            // validateGLMToken returns true or throws - no else branch needed
+            _ = try await AppState.validateGLMToken(token)
 
             // Check for cancellation before updating state
             guard !Task.isCancelled else { return }
 
-            if isValid {
-                onGLM(token)
-                glmTokenInput = ""
-            } else {
-                errorMessage = "Invalid API token. Please check and try again."
-            }
+            onGLM(token)
+            glmTokenInput = ""
         } catch {
             // Check for cancellation before updating state
             guard !Task.isCancelled else { return }

@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import SwiftUI
 
 /// Observable class that tracks system appearance and user color scheme preferences.

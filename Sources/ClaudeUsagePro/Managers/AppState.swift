@@ -46,8 +46,24 @@ class AppState {
     private let defaults = UserDefaults.standard
     private let accountsKey = Constants.UserDefaultsKeys.savedAccounts
 
+    /// Track whether monitoring has been started to avoid duplicate starts
+    private var hasStartedMonitoring = false
+
     init() {
         loadAccounts()
+    }
+
+    /// Starts monitoring for all loaded sessions.
+    /// Safe to call multiple times - will only start monitoring once.
+    /// Call this after app UI is ready (e.g., from onAppear).
+    func startMonitoringAll() {
+        guard !hasStartedMonitoring else { return }
+        hasStartedMonitoring = true
+
+        Log.debug(Log.Category.app, "Starting monitoring for \(sessions.count) sessions")
+        for session in sessions {
+            session.startMonitoring()
+        }
     }
 
     /// Adds a new Claude account with the given authentication cookies.
@@ -204,8 +220,6 @@ class AppState {
     /// - Parameter token: The API token to validate
     /// - Returns: True if the token is valid (successful fetch)
     /// - Throws: GLMTrackerError if the validation fails
-    /// - Note: Explicitly marked @MainActor to ensure callers resume on main thread after await
-    @MainActor
     static func validateGLMToken(_ token: String) async throws -> Bool {
         let tracker = GLMTrackerService()
         // A successful fetch proves the token is valid, regardless of limit values
@@ -304,7 +318,8 @@ class AppState {
 
             for session in self.sessions {
                 subscribeToSessionChanges(session)
-                session.startMonitoring()
+                // Note: startMonitoring() is called separately via startMonitoringAll()
+                // to avoid side effects during init
             }
         } catch {
             Log.error(
