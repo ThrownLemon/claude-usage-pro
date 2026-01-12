@@ -17,7 +17,47 @@ swift run
 
 # Build release version
 swift build -c release
+
+# Run tests
+swift test
 ```
+
+## Code Quality
+
+### Linting and Formatting
+
+The project uses SwiftLint and SwiftFormat for consistent code style. Install locally:
+
+```bash
+brew install swiftlint swiftformat
+```
+
+Commands:
+
+```bash
+# Check for linting issues
+swiftlint lint
+
+# Auto-fix formatting issues
+swiftformat Sources Tests
+
+# Check formatting without modifying (CI mode)
+swiftformat Sources Tests --lint
+```
+
+### Configuration Files
+
+- `.swiftlint.yml` - SwiftLint rules (line length, type body length, disabled/enabled rules)
+- `.swiftformat` - SwiftFormat options (indent, max width, wrapping style)
+
+### CI/CD
+
+GitHub Actions workflow (`.github/workflows/swift.yml`) runs on push/PR to main/develop:
+
+- **build**: Compiles, runs tests, uploads release artifact
+- **code-quality**: Runs SwiftLint and SwiftFormat checks
+
+Features: SPM caching, concurrency (cancels in-progress runs), pinned macOS version
 
 ## Architecture
 

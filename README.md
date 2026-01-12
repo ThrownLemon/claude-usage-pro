@@ -205,9 +205,23 @@ swift run
 
 # Build release version
 swift build -c release
+
+# Run tests
+swift test
 ```
 
-See [CLAUDE.md](./CLAUDE.md) for more detailed build instructions and architecture documentation.
+**Code quality tools** (install with `brew install swiftlint swiftformat`):
+```bash
+# Check for linting issues
+swiftlint lint
+
+# Auto-fix formatting
+swiftformat Sources Tests
+```
+
+**CI/CD**: GitHub Actions automatically runs builds, tests, and code quality checks on all PRs.
+
+See [CLAUDE.md](./CLAUDE.md) for detailed build instructions, architecture documentation, and configuration file reference.
 
 ## License
 
