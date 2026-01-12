@@ -261,6 +261,161 @@ actor AnthropicOAuthService {
         }
     }
 
+    /// Pings the Claude session to wake it up by creating and deleting a minimal conversation.
+    /// Uses the claude.ai web API with the OAuth token.
+    /// - Parameter token: A valid OAuth token
+    /// - Returns: true if the ping succeeded, false otherwise
+    func pingSession(token: String) async -> Bool {
+        let claudeBaseURL = "https://claude.ai"
+
+        // Step 1: Get organizations
+        guard let orgsURL = URL(string: "\(claudeBaseURL)/api/organizations") else {
+            Log.error(category, "Ping: Invalid organizations URL")
+            return false
+        }
+
+        var orgsRequest = URLRequest(url: orgsURL)
+        orgsRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        orgsRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let orgId: String
+        do {
+            let (orgsData, orgsResponse) = try await URLSession.shared.data(for: orgsRequest)
+            guard let httpResponse = orgsResponse as? HTTPURLResponse,
+                  (200 ... 299).contains(httpResponse.statusCode)
+            else {
+                let status = (orgsResponse as? HTTPURLResponse)?.statusCode ?? -1
+                Log.error(category, "Ping: Failed to fetch organizations (status \(status))")
+                return false
+            }
+
+            struct Org: Codable {
+                let uuid: String?
+                let id: String?
+            }
+            let orgs = try JSONDecoder().decode([Org].self, from: orgsData)
+            guard let firstOrg = orgs.first, let id = firstOrg.uuid ?? firstOrg.id else {
+                Log.error(category, "Ping: No organizations found")
+                return false
+            }
+            orgId = id
+            Log.debug(category, "Ping: Using organization \(orgId)")
+        } catch {
+            Log.error(category, "Ping: Error fetching organizations: \(error)")
+            return false
+        }
+
+        // Step 2: Create conversation
+        guard let createURL = URL(string: "\(claudeBaseURL)/api/organizations/\(orgId)/chat_conversations") else {
+            Log.error(category, "Ping: Invalid create conversation URL")
+            return false
+        }
+
+        let chatId: String
+        do {
+            var createRequest = URLRequest(url: createURL)
+            createRequest.httpMethod = "POST"
+            createRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            createRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            createRequest.httpBody = try JSONSerialization.data(withJSONObject: [
+                "uuid": UUID().uuidString.lowercased(),
+                "name": "",
+            ])
+
+            let (createData, createResponse) = try await URLSession.shared.data(for: createRequest)
+            guard let httpResponse = createResponse as? HTTPURLResponse,
+                  (200 ... 299).contains(httpResponse.statusCode)
+            else {
+                let status = (createResponse as? HTTPURLResponse)?.statusCode ?? -1
+                Log.error(category, "Ping: Failed to create conversation (status \(status))")
+                return false
+            }
+
+            struct Chat: Codable {
+                let uuid: String
+            }
+            let chat = try JSONDecoder().decode(Chat.self, from: createData)
+            chatId = chat.uuid
+            Log.debug(category, "Ping: Created conversation \(chatId)")
+        } catch {
+            Log.error(category, "Ping: Error creating conversation: \(error)")
+            return false
+        }
+
+        // Step 3: Send minimal message
+        guard let msgURL = URL(
+            string: "\(claudeBaseURL)/api/organizations/\(orgId)/chat_conversations/\(chatId)/completion"
+        ) else {
+            Log.error(category, "Ping: Invalid message URL")
+            return false
+        }
+
+        do {
+            var msgRequest = URLRequest(url: msgURL)
+            msgRequest.httpMethod = "POST"
+            msgRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            msgRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            msgRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+
+            let timezone = TimeZone.current.identifier
+            msgRequest.httpBody = try JSONSerialization.data(withJSONObject: [
+                "prompt": "hi",
+                "timezone": timezone,
+                "rendering_mode": "default",
+                "attachments": [],
+                "files": [],
+            ] as [String: Any])
+
+            let (_, msgResponse) = try await URLSession.shared.data(for: msgRequest)
+            guard let httpResponse = msgResponse as? HTTPURLResponse,
+                  (200 ... 299).contains(httpResponse.statusCode)
+            else {
+                let status = (msgResponse as? HTTPURLResponse)?.statusCode ?? -1
+                Log.error(category, "Ping: Failed to send message (status \(status))")
+                // Still try to delete the conversation
+                _ = await deleteConversation(token: token, orgId: orgId, chatId: chatId)
+                return false
+            }
+            Log.debug(category, "Ping: Message sent successfully")
+        } catch {
+            Log.error(category, "Ping: Error sending message: \(error)")
+            // Still try to delete the conversation
+            _ = await deleteConversation(token: token, orgId: orgId, chatId: chatId)
+            return false
+        }
+
+        // Step 4: Delete conversation
+        let deleted = await deleteConversation(token: token, orgId: orgId, chatId: chatId)
+        if deleted {
+            Log.info(category, "Ping: Success!")
+        }
+        return true
+    }
+
+    /// Helper to delete a conversation during ping cleanup
+    private func deleteConversation(token: String, orgId: String, chatId: String) async -> Bool {
+        let claudeBaseURL = "https://claude.ai"
+        guard let deleteURL = URL(
+            string: "\(claudeBaseURL)/api/organizations/\(orgId)/chat_conversations/\(chatId)"
+        ) else {
+            return false
+        }
+
+        var deleteRequest = URLRequest(url: deleteURL)
+        deleteRequest.httpMethod = "DELETE"
+        deleteRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (_, deleteResponse) = try await URLSession.shared.data(for: deleteRequest)
+            let status = (deleteResponse as? HTTPURLResponse)?.statusCode ?? -1
+            Log.debug(category, "Ping: Deleted conversation (status \(status))")
+            return (200 ... 299).contains(status)
+        } catch {
+            Log.warning(category, "Ping: Failed to delete conversation: \(error)")
+            return false
+        }
+    }
+
     // MARK: - Private Implementation
 
     private func fetchUsageResponse(token: String) async throws -> OAuthUsageResponse {

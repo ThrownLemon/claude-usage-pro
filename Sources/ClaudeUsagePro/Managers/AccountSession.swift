@@ -145,19 +145,37 @@ class AccountSession: Identifiable {
             return
         }
         Log.debug(category, "\(isAuto ? "Auto" : "Manual") ping requested")
-        tracker?.onPingComplete = { [weak self] success in
-            guard let self else { return }
-            if success {
-                Log.debug(category, "Ping finished, refreshing data...")
-                Task { @MainActor [weak self] in
+
+        // Use OAuth service for OAuth accounts, TrackerService for cookie-based accounts
+        if let oauthService, let token = account.oauthToken {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let success = await oauthService.pingSession(token: token)
+                if success {
+                    Log.debug(category, "OAuth ping finished, refreshing data...")
                     try? await Task.sleep(for: .seconds(2))
-                    self?.fetchNow()
+                    fetchNow()
+                } else {
+                    Log.error(category, "OAuth ping failed")
                 }
-            } else {
-                Log.error(category, "Ping failed")
             }
+        } else if let tracker {
+            tracker.onPingComplete = { [weak self] success in
+                guard let self else { return }
+                if success {
+                    Log.debug(category, "Ping finished, refreshing data...")
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .seconds(2))
+                        self?.fetchNow()
+                    }
+                } else {
+                    Log.error(category, "Ping failed")
+                }
+            }
+            tracker.pingSession()
+        } else {
+            Log.warning(category, "Ping unavailable: no OAuth service or tracker configured")
         }
-        tracker?.pingSession()
     }
 
     /// Immediately fetches usage data for the account.
