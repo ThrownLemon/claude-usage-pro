@@ -129,7 +129,7 @@ class AccountSession: Identifiable {
         }
     }
 
-    /// Sends a ping to wake up a ready session.
+    /// Sends a ping to wake up a ready session or trigger minimal usage.
     /// - Parameter isAuto: Whether this is an automatic ping (respects auto-wake setting)
     func ping(isAuto: Bool = false) {
         if isAuto, !UserDefaults.standard.bool(forKey: Constants.UserDefaultsKeys.autoWakeUp) {
@@ -137,44 +137,72 @@ class AccountSession: Identifiable {
             return
         }
 
-        guard let usageData = account.usageData,
-              usageData.sessionPercentage == 0,
-              usageData.sessionReset == Constants.Status.ready
-        else {
-            Log.debug(category, "Ping skipped (session not ready)")
-            return
+        // For Claude accounts, only ping when session is ready
+        // For GLM accounts, allow pinging anytime (no "ready" state concept)
+        if account.type == .claude {
+            guard let usageData = account.usageData,
+                  usageData.sessionPercentage == 0,
+                  usageData.sessionReset == Constants.Status.ready
+            else {
+                Log.debug(category, "Ping skipped (session not ready)")
+                return
+            }
         }
-        Log.debug(category, "\(isAuto ? "Auto" : "Manual") ping requested")
 
-        // Use OAuth service for OAuth accounts, TrackerService for cookie-based accounts
-        if let oauthService, let token = account.oauthToken {
+        Log.debug(category, "\(isAuto ? "Auto" : "Manual") ping requested for \(account.type) account")
+
+        switch account.type {
+        case .claude:
+            // Use OAuth service for OAuth accounts, TrackerService for cookie-based accounts
+            if let oauthService, let token = account.oauthToken {
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    let success = await oauthService.pingSession(token: token)
+                    if success {
+                        Log.debug(category, "OAuth ping finished, refreshing data...")
+                        try? await Task.sleep(for: .seconds(2))
+                        fetchNow()
+                    } else {
+                        Log.error(category, "OAuth ping failed")
+                    }
+                }
+            } else if let tracker {
+                tracker.onPingComplete = { [weak self] success in
+                    guard let self else { return }
+                    if success {
+                        Log.debug(category, "Ping finished, refreshing data...")
+                        Task { @MainActor [weak self] in
+                            try? await Task.sleep(for: .seconds(2))
+                            self?.fetchNow()
+                        }
+                    } else {
+                        Log.error(category, "Ping failed")
+                    }
+                }
+                tracker.pingSession()
+            } else {
+                Log.warning(category, "Ping unavailable: no OAuth service or tracker configured")
+            }
+
+        case .glm:
+            guard let glmTracker, let apiToken = account.apiToken else {
+                Log.warning(category, "GLM ping unavailable: no tracker or API token")
+                return
+            }
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let success = await oauthService.pingSession(token: token)
+                let success = await glmTracker.pingSession(apiToken: apiToken)
                 if success {
-                    Log.debug(category, "OAuth ping finished, refreshing data...")
+                    Log.debug(category, "GLM ping finished, refreshing data...")
                     try? await Task.sleep(for: .seconds(2))
                     fetchNow()
                 } else {
-                    Log.error(category, "OAuth ping failed")
+                    Log.error(category, "GLM ping failed")
                 }
             }
-        } else if let tracker {
-            tracker.onPingComplete = { [weak self] success in
-                guard let self else { return }
-                if success {
-                    Log.debug(category, "Ping finished, refreshing data...")
-                    Task { @MainActor [weak self] in
-                        try? await Task.sleep(for: .seconds(2))
-                        self?.fetchNow()
-                    }
-                } else {
-                    Log.error(category, "Ping failed")
-                }
-            }
-            tracker.pingSession()
-        } else {
-            Log.warning(category, "Ping unavailable: no OAuth service or tracker configured")
+
+        case .cursor:
+            Log.warning(category, "Ping not supported for Cursor accounts")
         }
     }
 

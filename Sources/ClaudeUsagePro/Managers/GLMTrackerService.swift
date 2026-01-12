@@ -276,6 +276,76 @@ final class GLMTrackerService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Ping Session
+
+    /// Pings the GLM API to trigger minimal token usage.
+    /// Sends a small chat completion request to wake up the session.
+    /// - Parameter apiToken: The GLM API token
+    /// - Returns: true if the ping succeeded, false otherwise
+    func pingSession(apiToken: String) async -> Bool {
+        // Extract the base domain from the quotaLimitURL
+        guard let url = URL(string: quotaLimitURL),
+              let host = url.host
+        else {
+            Log.error(category, "Ping: Could not extract host from quota URL")
+            return false
+        }
+
+        let scheme = url.scheme ?? "https"
+        let chatEndpoint = "\(scheme)://\(host)/api/paas/v4/chat/completions"
+
+        guard let chatURL = URL(string: chatEndpoint) else {
+            Log.error(category, "Ping: Invalid chat endpoint URL")
+            return false
+        }
+
+        var request = URLRequest(url: chatURL)
+        request.httpMethod = "POST"
+        request.timeoutInterval = Constants.Timeouts.networkRequestTimeout
+        request.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Minimal request body - use the smallest/cheapest model
+        let requestBody: [String: Any] = [
+            "model": "glm-4-flash",
+            "messages": [
+                ["role": "user", "content": "hi"],
+            ],
+            "max_tokens": 1,
+            "stream": false,
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            Log.error(category, "Ping: Failed to serialize request body: \(error)")
+            return false
+        }
+
+        Log.debug(category, "Ping: Sending minimal chat request...")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                Log.error(category, "Ping: Non-HTTP response received")
+                return false
+            }
+
+            if (200 ... 299).contains(httpResponse.statusCode) {
+                Log.info(category, "Ping: Success! (status \(httpResponse.statusCode))")
+                return true
+            } else {
+                let responseBody = String(data: data, encoding: .utf8) ?? "unknown"
+                Log.error(category, "Ping: Failed with status \(httpResponse.statusCode): \(responseBody.prefix(200))")
+                return false
+            }
+        } catch {
+            Log.error(category, "Ping: Network error: \(error)")
+            return false
+        }
+    }
+
     // MARK: - Additional Endpoints (for future use)
 
     /// Fetch model usage data for a time range.
