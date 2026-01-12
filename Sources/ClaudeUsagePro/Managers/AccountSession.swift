@@ -249,14 +249,7 @@ class AccountSession: Identifiable {
 
             self.lastError = error
             Log.error(category, "OAuth fetch failed for \(account.name): \(error.localizedDescription)")
-
-            // Try to use cached data as fallback
-            Task { @MainActor in
-                if let cached = await UsageCache.shared.getLastKnown(for: self.account.id) {
-                    Log.info(self.category, "Using cached data (stale: \(cached.isStale)) for \(self.account.name)")
-                    self.updateWithUsageData(cached.data)
-                }
-            }
+            // No cached data fallback - show error state to user
         }
     }
 
@@ -268,14 +261,12 @@ class AccountSession: Identifiable {
             Log.warning(category, "No refresh token available for \(account.name), marking as needs re-auth")
             markNeedsReauthWithNotification()
             lastError = AnthropicOAuthError.httpError(statusCode: 401, message: "Token expired and no refresh token available")
-            fallbackToCachedData()
             return
         }
 
         guard let oauthService = oauthService else {
             Log.error(category, "No OAuth service available for refresh")
             markNeedsReauthWithNotification()
-            fallbackToCachedData()
             return
         }
 
@@ -301,7 +292,7 @@ class AccountSession: Identifiable {
                 Log.error(self.category, "Token refresh failed for \(self.account.name): \(error.localizedDescription)")
                 self.markNeedsReauthWithNotification()
                 self.lastError = error
-                self.fallbackToCachedData()
+                // No cached data fallback - show re-auth UI to user
             }
         }
     }
@@ -317,16 +308,6 @@ class AccountSession: Identifiable {
             accountId: account.id,
             accountName: account.name
         )
-    }
-
-    /// Falls back to cached data when authentication fails
-    private func fallbackToCachedData() {
-        Task { @MainActor in
-            if let cached = await UsageCache.shared.getLastKnown(for: self.account.id) {
-                Log.info(self.category, "Using cached data (stale: \(cached.isStale)) for \(self.account.name)")
-                self.updateWithUsageData(cached.data)
-            }
-        }
     }
 
     private func handleCursorUsageResult(_ result: Result<CursorUsageInfo, Error>) {
@@ -364,14 +345,7 @@ class AccountSession: Identifiable {
         case .failure(let error):
             self.lastError = error
             Log.error(Log.Category.cursorTracker, "Fetch failed: \(error)")
-
-            // Try to use cached data as fallback
-            Task { @MainActor in
-                if let cached = await UsageCache.shared.getLastKnown(for: self.account.id) {
-                    Log.info(self.category, "Using cached data (stale: \(cached.isStale)) for \(self.account.name)")
-                    self.updateWithUsageData(cached.data)
-                }
-            }
+            // No cached data fallback - show error state to user
         }
     }
 
@@ -418,14 +392,7 @@ class AccountSession: Identifiable {
         case .failure(let error):
             self.lastError = error
             Log.error(Log.Category.glmTracker, "Fetch failed: \(error)")
-
-            // Try to use cached data as fallback
-            Task { @MainActor in
-                if let cached = await UsageCache.shared.getLastKnown(for: self.account.id) {
-                    Log.info(self.category, "Using cached data (stale: \(cached.isStale)) for \(self.account.name)")
-                    self.updateWithUsageData(cached.data)
-                }
-            }
+            // No cached data fallback - show error state to user
         }
     }
 
