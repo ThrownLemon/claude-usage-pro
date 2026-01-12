@@ -42,51 +42,35 @@ struct KeychainService {
     ///   - data: The data to store
     ///   - key: The unique key to identify this item
     /// - Throws: KeychainError if the operation fails
+    ///
+    /// Uses the file-based keychain (kSecUseDataProtectionKeychain: false) which works
+    /// without code signing entitlements. This is required for CLI tools like `swift run`.
+    /// See: https://developer.apple.com/forums/thread/114456
     static func save(_ data: Data, forKey key: String) throws {
-        // First try to delete any existing item from data protection keychain
-        // delete() already treats errSecItemNotFound as success, so any thrown
-        // error represents a real failure (permissions, corruption) that should propagate
-        try delete(forKey: key)
+        // First delete any existing item (best-effort, ignores not-found)
+        deleteForSave(forKey: key)
 
         // Legacy keychain cleanup is best-effort (may not exist, different error handling)
         deleteFromLegacyKeychain(forKey: key)
 
-        // Try saving to data protection keychain first
-        let dataProtectionQuery: [String: Any] = [
+        // Use file-based keychain (works without entitlements for CLI tools)
+        let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            kSecUseDataProtectionKeychain as String: true
+            kSecUseDataProtectionKeychain as String: false
         ]
 
-        var status = SecItemAdd(dataProtectionQuery as CFDictionary, nil)
-
-        if status == errSecSuccess {
-            Log.debug(Log.Category.keychain, "Saved to data protection keychain: \(key)")
-            return
-        }
-
-        // Fall back to regular keychain if data protection fails
-        Log.warning(Log.Category.keychain, "Data protection keychain save failed (\(status)), trying regular keychain")
-
-        let regularQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-
-        status = SecItemAdd(regularQuery as CFDictionary, nil)
+        let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
             Log.error(Log.Category.keychain, "Failed to save to keychain: \(status)")
             throw KeychainError.unableToSave(status)
         }
 
-        Log.debug(Log.Category.keychain, "Saved to regular keychain: \(key)")
+        Log.debug(Log.Category.keychain, "Saved to keychain: \(key)")
     }
 
     /// Delete from legacy (non-data-protection) keychain
@@ -98,6 +82,19 @@ struct KeychainService {
             kSecAttrAccount as String: key
         ]
         // Ignore result - legacy items may not exist
+        _ = SecItemDelete(query as CFDictionary)
+    }
+
+    /// Delete before save - best-effort, doesn't throw
+    /// Used internally by save() to clear existing items before adding new ones
+    private static func deleteForSave(forKey key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+            kSecUseDataProtectionKeychain as String: false
+        ]
+        // Best-effort deletion - item may not exist
         _ = SecItemDelete(query as CFDictionary)
     }
 
@@ -125,31 +122,19 @@ struct KeychainService {
     }
 
     /// Internal helper to load from a specific service
+    /// Uses file-based keychain (works without entitlements for CLI tools)
     private static func loadFromService(_ serviceName: String, forKey key: String) throws -> Data? {
-        // First try with data protection keychain
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecUseDataProtectionKeychain as String: true
+            kSecUseDataProtectionKeychain as String: false
         ]
 
         var result: AnyObject?
-        var status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        // If not found, try without data protection keychain (for legacy items)
-        if status == errSecItemNotFound {
-            let legacyQuery: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: serviceName,
-                kSecAttrAccount as String: key,
-                kSecReturnData as String: true,
-                kSecMatchLimit as String: kSecMatchLimitOne
-            ]
-            status = SecItemCopyMatching(legacyQuery as CFDictionary, &result)
-        }
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
 
         if status == errSecItemNotFound {
             return nil
@@ -165,12 +150,13 @@ struct KeychainService {
     /// Delete data from the Keychain
     /// - Parameter key: The unique key identifying the item
     /// - Throws: KeychainError if the operation fails
+    /// Uses file-based keychain (works without entitlements for CLI tools)
     static func delete(forKey key: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecUseDataProtectionKeychain as String: true
+            kSecUseDataProtectionKeychain as String: false
         ]
 
         let status = SecItemDelete(query as CFDictionary)
@@ -284,16 +270,17 @@ struct KeychainService {
     }
 
     /// Delete all Keychain items for this app's service.
+    /// Uses file-based keychain (works without entitlements for CLI tools)
     ///
     /// Note: SecItemDelete cannot report the actual count of deleted items.
     /// - Returns: Status indicator: 1 = deletion succeeded, 0 = no items found, -1 = error
     @discardableResult
     static func deleteAll() -> Int {
-        // Query to find all items for our service
+        // Query to find all items for our service (file-based keychain)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecUseDataProtectionKeychain as String: true
+            kSecUseDataProtectionKeychain as String: false
         ]
 
         let status = SecItemDelete(query as CFDictionary)
