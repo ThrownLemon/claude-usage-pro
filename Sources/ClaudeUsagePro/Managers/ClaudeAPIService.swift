@@ -69,7 +69,7 @@ class ClaudeAPIService {
     /// - Returns: The organization UUID
     /// - Throws: ClaudeAPIError if the request fails or no organization is found
     private func fetchOrgId(cookies: [HTTPCookie]) async throws -> String {
-        guard let url = URL(string: "https://claude.ai/api/organizations") else {
+        guard let url = URL(string: Constants.ClaudeAPI.baseURL + Constants.ClaudeAPI.organizationsPath) else {
             throw ClaudeAPIError.invalidURL("organizations")
         }
 
@@ -95,7 +95,7 @@ class ClaudeAPIService {
     /// - Returns: UsageData with session and weekly usage percentages
     /// - Throws: ClaudeAPIError if the request fails
     private func fetchUsageData(orgId: String, cookies: [HTTPCookie]) async throws -> UsageData {
-        guard let url = URL(string: "https://claude.ai/api/organizations/\(orgId)/usage") else {
+        guard let url = URL(string: Constants.ClaudeAPI.baseURL + Constants.ClaudeAPI.usagePath(orgId: orgId)) else {
             throw ClaudeAPIError.invalidURL("usage")
         }
 
@@ -153,7 +153,7 @@ class ClaudeAPIService {
     /// - Returns: Tuple of email and full name, or nil if unavailable
     /// - Throws: ClaudeAPIError if the URL is invalid
     private func fetchUserInfo(cookies: [HTTPCookie]) async throws -> (email: String?, fullName: String?)? {
-        guard let url = URL(string: "https://claude.ai/api/users/me") else {
+        guard let url = URL(string: Constants.ClaudeAPI.baseURL + Constants.ClaudeAPI.userPath) else {
             throw ClaudeAPIError.invalidURL("me")
         }
 
@@ -180,7 +180,7 @@ class ClaudeAPIService {
     /// - Returns: The tier name ("Pro" or "Free"), or nil if unavailable
     /// - Throws: ClaudeAPIError if the URL is invalid
     private func fetchTier(orgId: String, cookies: [HTTPCookie]) async throws -> String? {
-        guard let url = URL(string: "https://claude.ai/api/bootstrap/\(orgId)/statsig") else {
+        guard let url = URL(string: Constants.ClaudeAPI.baseURL + Constants.ClaudeAPI.statsigPath(orgId: orgId)) else {
             throw ClaudeAPIError.invalidURL("statsig")
         }
 
@@ -229,8 +229,8 @@ class ClaudeAPIService {
             request.setValue(value, forHTTPHeaderField: key)
         }
 
-        request.setValue("https://claude.ai", forHTTPHeaderField: "Origin")
-        request.setValue("https://claude.ai/chats", forHTTPHeaderField: "Referer")
+        request.setValue(Constants.ClaudeAPI.baseURL, forHTTPHeaderField: "Origin")
+        request.setValue(Constants.ClaudeAPI.baseURL + "/chats", forHTTPHeaderField: "Referer")
         request.setValue(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             forHTTPHeaderField: "User-Agent"

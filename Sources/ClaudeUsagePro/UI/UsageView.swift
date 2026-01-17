@@ -51,8 +51,6 @@ struct UsageView: View {
     }
 
     @State private var isHovering = false
-    @State private var showStartText = false
-    let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     private let gaugeLineThickness: CGFloat = 5
 
@@ -378,7 +376,13 @@ struct UsageView: View {
             Constants.GLM.sessionWindowLabel
         case .cursor:
             "Request Usage"
-        default:
+        case .gemini, .antigravity:
+            "Quota Usage"
+        case .openai:
+            "Token Usage"
+        case .codex:
+            "Session Usage"
+        case .claude:
             "Session Usage"
         }
     }

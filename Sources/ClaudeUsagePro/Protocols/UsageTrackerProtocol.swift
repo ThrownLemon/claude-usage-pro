@@ -47,7 +47,8 @@ enum TrackerFactory {
 // MARK: - Adapter for CursorTrackerService
 
 /// Adapter that wraps CursorTrackerService to conform to UsageTracker protocol.
-final class CursorTrackerAdapter: UsageTracker, @unchecked Sendable {
+/// Thread-safety: All properties are immutable after initialization.
+final class CursorTrackerAdapter: UsageTracker, Sendable {
     private let service = CursorTrackerService()
 
     func fetchUsage() async throws -> UsageData {
@@ -78,7 +79,8 @@ final class CursorTrackerAdapter: UsageTracker, @unchecked Sendable {
 // MARK: - Adapter for GLMTrackerService
 
 /// Adapter that wraps GLMTrackerService to conform to UsageTracker protocol.
-final class GLMTrackerAdapter: UsageTracker, @unchecked Sendable {
+/// Thread-safety: All properties are immutable after initialization.
+final class GLMTrackerAdapter: UsageTracker, Sendable {
     private let service = GLMTrackerService()
     private let apiToken: String
 
@@ -137,6 +139,10 @@ enum TrackerAdapterError: Error, LocalizedError {
 /// Adapter that wraps TrackerService to conform to UsageTracker protocol.
 /// This adapter bridges the callback-based TrackerService to async/await.
 /// Handles concurrent calls by cancelling previous pending operations.
+///
+/// Thread-safety: Uses @MainActor for actor isolation. The @unchecked Sendable
+/// allows the class to be passed across isolation boundaries while all mutable
+/// state access remains guarded by the main actor.
 @MainActor
 final class ClaudeTrackerAdapter: UsageTracker, SessionPingable, @unchecked Sendable {
     private let service: TrackerService

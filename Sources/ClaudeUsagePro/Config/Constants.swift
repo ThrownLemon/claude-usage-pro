@@ -63,6 +63,8 @@ enum Constants {
         static let pingRefreshDelay: TimeInterval = 2.0
         /// Network request timeout (seconds)
         static let networkRequestTimeout: TimeInterval = 30
+        /// Timeout for subprocess/CLI command execution (seconds)
+        static let processExecutionTimeout: TimeInterval = 10
     }
 
     // MARK: - Notifications
@@ -132,6 +134,61 @@ enum Constants {
         static let sessionWindowHours: Double = 5.0
         /// Display label for the session window
         static let sessionWindowLabel = "Session usage"
+        /// Default API domain
+        static let defaultDomain = "https://open.bigmodel.cn"
+        /// Fallback API domain
+        static let fallbackDomain = "https://api.z.ai"
+    }
+
+    // MARK: - Gemini API
+
+    /// Constants for the Google Gemini CLI API.
+    /// WARNING: These are internal/undocumented Google endpoints reverse-engineered from the Gemini CLI.
+    /// They may change without notice. Use at your own risk.
+    enum GeminiAPI {
+        /// Quota retrieval endpoint (internal, undocumented - may change)
+        static let quotaURL = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"
+        /// Tier/plan information endpoint (internal, undocumented - may change)
+        static let tierURL = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
+        /// OAuth token refresh endpoint (standard Google OAuth endpoint)
+        static let tokenURL = "https://oauth2.googleapis.com/token"
+    }
+
+    // MARK: - OpenAI API
+
+    /// Constants for the OpenAI API.
+    /// The Usage API requires an Admin API key (only available to Organization Owners).
+    enum OpenAIAPI {
+        /// Base URL for usage endpoint (requires Admin API key)
+        static let usageBaseURL = "https://api.openai.com/v1/organization/usage"
+        /// Organization info endpoint (requires Admin API key)
+        static let orgURL = "https://api.openai.com/v1/organization"
+    }
+
+    // MARK: - Codex API
+
+    /// Constants for the OpenAI Codex CLI API.
+    /// WARNING: This is an internal/undocumented ChatGPT backend endpoint.
+    /// It may change without notice. Use at your own risk.
+    enum CodexAPI {
+        /// Usage endpoint on ChatGPT backend (internal, undocumented - may change)
+        static let usageURL = "https://chatgpt.com/backend-api/codex/usage"
+    }
+
+    // MARK: - Claude API
+
+    /// Constants for the Claude.ai web API
+    enum ClaudeAPI {
+        /// Base URL for Claude.ai
+        static let baseURL = "https://claude.ai"
+        /// Organizations endpoint
+        static let organizationsPath = "/api/organizations"
+        /// User profile endpoint
+        static let userPath = "/api/users/me"
+        /// Usage endpoint template (requires orgId)
+        static func usagePath(orgId: String) -> String { "/api/organizations/\(orgId)/usage" }
+        /// Statsig endpoint template (requires orgId)
+        static func statsigPath(orgId: String) -> String { "/api/bootstrap/\(orgId)/statsig" }
     }
 
     // MARK: - Status Strings

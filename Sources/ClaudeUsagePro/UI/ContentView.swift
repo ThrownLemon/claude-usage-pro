@@ -72,6 +72,9 @@ struct ContentView: View {
     @State private var addAccountStep = AddAccountStep.menu
     @State private var glmTokenInput = ""
     @State private var claudeOAuthTokenInput = ""
+    @State private var geminiTokenInput = ""
+    @State private var openaiApiKeyInput = ""
+    @State private var codexTokenInput = ""
     /// Account ID being re-authenticated (nil if adding new account)
     @State private var reAuthAccountId: UUID?
 
@@ -101,6 +104,14 @@ struct ContentView: View {
                 "OAuth Token"
             case .glmToken:
                 "GLM Coding Plan"
+            case .geminiOptions, .geminiToken:
+                "Google Gemini CLI"
+            case .antigravityDetect:
+                "Google Antigravity"
+            case .openaiApiKey:
+                "OpenAI API"
+            case .codexOptions, .codexToken:
+                "OpenAI Codex CLI"
             }
         } else {
             "AI Usage Pro"
@@ -138,6 +149,18 @@ struct ContentView: View {
                     addAccountStep = .claudeOptions
                 case .glmToken:
                     addAccountStep = .menu
+                case .geminiOptions:
+                    addAccountStep = .menu
+                case .geminiToken:
+                    addAccountStep = .geminiOptions
+                case .antigravityDetect:
+                    addAccountStep = .menu
+                case .openaiApiKey:
+                    addAccountStep = .menu
+                case .codexOptions:
+                    addAccountStep = .menu
+                case .codexToken:
+                    addAccountStep = .codexOptions
                 }
             }
         }
@@ -304,6 +327,9 @@ struct ContentView: View {
                     step: $addAccountStep,
                     glmTokenInput: $glmTokenInput,
                     claudeOAuthTokenInput: $claudeOAuthTokenInput,
+                    geminiTokenInput: $geminiTokenInput,
+                    openaiApiKeyInput: $openaiApiKeyInput,
+                    codexTokenInput: $codexTokenInput,
                     onClaudeOAuthSignIn: {
                         showAddAccount = false
                         oauthLogin.startLogin()
@@ -328,6 +354,41 @@ struct ContentView: View {
                         if !token.isEmpty {
                             appState.addGLMAccount(apiToken: token)
                         }
+                    },
+                    onGemini: {
+                        let added = appState.addGeminiAccountFromCLI()
+                        if added {
+                            showAddAccount = false
+                        }
+                        return added
+                    },
+                    onAntigravity: {
+                        let added = appState.addAntigravityAccount()
+                        if added {
+                            showAddAccount = false
+                        }
+                        return added
+                    },
+                    onOpenAI: { key in
+                        let added = appState.addOpenAIAccount(adminApiKey: key)
+                        if added {
+                            showAddAccount = false
+                        }
+                        return added
+                    },
+                    onCodexCLI: {
+                        let added = appState.addCodexAccountFromCLI()
+                        if added {
+                            showAddAccount = false
+                        }
+                        return added
+                    },
+                    onCodex: { token in
+                        let added = appState.addCodexAccount(authToken: token)
+                        if added {
+                            showAddAccount = false
+                        }
+                        return added
                     }
                 )
             } else {

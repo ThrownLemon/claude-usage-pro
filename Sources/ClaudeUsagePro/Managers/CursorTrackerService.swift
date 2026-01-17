@@ -70,8 +70,11 @@ struct CursorUsageInfo {
 }
 
 /// Service for fetching Cursor IDE usage statistics from the local installation.
-class CursorTrackerService {
-    private let cursorAPIBase = "https://api2.cursor.sh"
+///
+/// Thread-safety: All properties are immutable after initialization.
+/// Async methods use URLSession which is internally thread-safe.
+final class CursorTrackerService: Sendable {
+    private let cursorAPIBase = Constants.URLs.cursorAPI.absoluteString
     private let stateDBPath = "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
 
     init() {}

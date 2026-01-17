@@ -315,6 +315,38 @@ class TrackerService: NSObject, ObservableObject, WKNavigationDelegate {
         webView.load(URLRequest(url: url))
     }
 
+    /// Allowed domains for the tracker WebView.
+    /// Only Claude.ai is allowed for API scraping.
+    private static let allowedDomains: Set<String> = ["claude.ai"]
+
+    /// Check if a host is in the allowed domains list (including subdomains)
+    private func isAllowedDomain(_ host: String?) -> Bool {
+        guard let host = host?.lowercased() else { return false }
+        return Self.allowedDomains.contains { allowedDomain in
+            host == allowedDomain || host.hasSuffix("." + allowedDomain)
+        }
+    }
+
+    /// Validates navigation requests to ensure only trusted domains are accessed.
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.allow)
+            return
+        }
+
+        // Allow navigation only to Claude.ai
+        if isAllowedDomain(url.host) {
+            decisionHandler(.allow)
+        } else {
+            Log.warning(category, "Blocked navigation to untrusted domain: \(url.host ?? "unknown")")
+            decisionHandler(.cancel)
+        }
+    }
+
     /// Called when the WebView finishes loading a page.
     /// Injects JavaScript to fetch usage data or execute ping.
     func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {

@@ -6,6 +6,7 @@ import WebKit
 
 /// Manages authentication flow for Claude.ai accounts.
 /// Opens a WebKit browser window for login and captures session cookies on success.
+@MainActor
 class AuthManager: NSObject, ObservableObject, WKNavigationDelegate {
     private let category = Log.Category.auth
     /// Whether the login window is currently displayed
@@ -22,61 +23,102 @@ class AuthManager: NSObject, ObservableObject, WKNavigationDelegate {
     }
 
     deinit {
-        if let observer = windowCloseObserver {
-            NotificationCenter.default.removeObserver(observer)
+        // deinit runs on the main actor for @MainActor classes
+        MainActor.assumeIsolated {
+            if let observer = windowCloseObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            webView?.configuration.userContentController.removeAllUserScripts()
         }
-        webView?.configuration.userContentController.removeAllUserScripts()
     }
 
     func startLogin() {
         Log.debug(category, "Starting login process...")
-        DispatchQueue.main.async {
-            if self.loginWindow != nil {
-                Log.debug(self.category, "Login window already exists, bringing to front")
-                self.loginWindow?.makeKeyAndOrderFront(nil)
-                return
-            }
 
-            let config = WKWebViewConfiguration()
-            config.websiteDataStore = .nonPersistent()
+        if loginWindow != nil {
+            Log.debug(category, "Login window already exists, bringing to front")
+            loginWindow?.makeKeyAndOrderFront(nil)
+            return
+        }
 
-            let webView = WKWebView(frame: .zero, configuration: config)
-            webView.navigationDelegate = self
-            self.webView = webView
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
 
-            Log.debug(self.category, "Creating login window")
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
-                styleMask: [.titled, .closable, .resizable],
-                backing: .buffered,
-                defer: false
-            )
-            // ... (rest of setup)
-            window.title = "Login to Claude.ai"
-            window.center()
-            window.contentView = webView
-            window.isReleasedWhenClosed = false
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = self
+        self.webView = webView
 
-            self.windowCloseObserver = NotificationCenter.default.addObserver(
-                forName: NSWindow.willCloseNotification,
-                object: window,
-                queue: .main
-            ) { [weak self] _ in
+        Log.debug(category, "Creating login window")
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Login to Claude.ai"
+        window.center()
+        window.contentView = webView
+        window.isReleasedWhenClosed = false
+
+        windowCloseObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
                 self?.handleWindowClosed()
             }
+        }
 
-            self.loginWindow = window
-            self.isLoginWindowOpen = true
+        loginWindow = window
+        isLoginWindowOpen = true
 
-            NSApp.setActivationPolicy(.regular)
+        NSApp.setActivationPolicy(.regular)
 
-            window.center()
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
 
-            let url = Constants.URLs.claudeLogin
-            Log.debug(self.category, "Loading URL: \(url)")
-            webView.load(URLRequest(url: url))
+        let url = Constants.URLs.claudeLogin
+        Log.debug(category, "Loading URL: \(url)")
+        webView.load(URLRequest(url: url))
+    }
+
+    /// Allowed domains for the login flow.
+    /// Includes Claude.ai and common OAuth providers that may be used during authentication.
+    private static let allowedDomains: Set<String> = [
+        "claude.ai",
+        "anthropic.com",
+        "accounts.google.com",
+        "appleid.apple.com",
+        "login.microsoftonline.com",
+    ]
+
+    /// Check if a host is in the allowed domains list (including subdomains)
+    private func isAllowedDomain(_ host: String?) -> Bool {
+        guard let host = host?.lowercased() else { return false }
+        return Self.allowedDomains.contains { allowedDomain in
+            host == allowedDomain || host.hasSuffix("." + allowedDomain)
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.allow)
+            return
+        }
+
+        // Allow navigation only to trusted domains
+        if isAllowedDomain(url.host) {
+            Log.debug(category, "Allowing navigation to: \(url.host ?? "unknown")")
+            decisionHandler(.allow)
+        } else {
+            Log.warning(category, "Blocked navigation to untrusted domain: \(url.host ?? "unknown")")
+            decisionHandler(.cancel)
         }
     }
 
@@ -100,7 +142,7 @@ class AuthManager: NSObject, ObservableObject, WKNavigationDelegate {
 
         if hasSession {
             Log.info(category, "Session cookie found! Triggering success")
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.onLoginSuccess?(cookies)
                 self.closeLoginWindow()
             }

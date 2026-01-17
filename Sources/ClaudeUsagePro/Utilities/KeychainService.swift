@@ -272,6 +272,54 @@ enum KeychainService {
         "oauthRefreshToken_\(accountId.uuidString)"
     }
 
+    // MARK: - Gemini Account Keys
+
+    /// Generate a Keychain key for storing a Gemini access token for a specific account
+    /// - Parameter accountId: The account's UUID
+    /// - Returns: A unique key string for the account's Gemini access token
+    static func geminiAccessTokenKey(for accountId: UUID) -> String {
+        "geminiAccessToken_\(accountId.uuidString)"
+    }
+
+    /// Generate a Keychain key for storing a Gemini refresh token for a specific account
+    /// - Parameter accountId: The account's UUID
+    /// - Returns: A unique key string for the account's Gemini refresh token
+    static func geminiRefreshTokenKey(for accountId: UUID) -> String {
+        "geminiRefreshToken_\(accountId.uuidString)"
+    }
+
+    /// Generate a Keychain key for storing a Gemini ID token for a specific account
+    /// - Parameter accountId: The account's UUID
+    /// - Returns: A unique key string for the account's Gemini ID token
+    static func geminiIdTokenKey(for accountId: UUID) -> String {
+        "geminiIdToken_\(accountId.uuidString)"
+    }
+
+    /// Generate a Keychain key for storing a Gemini token expiry for a specific account
+    /// - Parameter accountId: The account's UUID
+    /// - Returns: A unique key string for the account's Gemini token expiry
+    static func geminiTokenExpiryKey(for accountId: UUID) -> String {
+        "geminiTokenExpiry_\(accountId.uuidString)"
+    }
+
+    // MARK: - OpenAI Account Keys
+
+    /// Generate a Keychain key for storing an OpenAI Admin API key for a specific account
+    /// - Parameter accountId: The account's UUID
+    /// - Returns: A unique key string for the account's OpenAI Admin API key
+    static func openaiAdminApiKeyKey(for accountId: UUID) -> String {
+        "openaiAdminApiKey_\(accountId.uuidString)"
+    }
+
+    // MARK: - Codex Account Keys
+
+    /// Generate a Keychain key for storing a Codex auth token for a specific account
+    /// - Parameter accountId: The account's UUID
+    /// - Returns: A unique key string for the account's Codex auth token
+    static func codexAuthTokenKey(for accountId: UUID) -> String {
+        "codexAuthToken_\(accountId.uuidString)"
+    }
+
     /// Delete all Keychain items for this app's service.
     /// Uses file-based keychain (works without entitlements for CLI tools)
     ///

@@ -9,6 +9,14 @@ enum AccountType: String, Codable {
     case cursor
     /// GLM Coding Plan account
     case glm
+    /// Google Gemini CLI account
+    case gemini
+    /// Google Antigravity IDE account
+    case antigravity
+    /// OpenAI API account (pay-per-token with Admin API key)
+    case openai
+    /// OpenAI Codex CLI account (subscription-based)
+    case codex
 }
 
 /// Usage statistics for an account, normalized across different provider types.
@@ -45,6 +53,32 @@ struct UsageData: Hashable, Codable {
     /// Sonnet model reset time display string
     var sonnetReset: String?
 
+    // Gemini-specific fields
+    /// Gemini remaining quota fraction (0.0-1.0)
+    var geminiRemainingFraction: Double?
+    /// Gemini model ID (e.g., "gemini-2.5-flash")
+    var geminiModelId: String?
+
+    // Antigravity-specific fields
+    /// Antigravity model name with highest usage
+    var antigravityModelName: String?
+
+    // OpenAI API-specific fields (pay-per-token)
+    /// Total tokens used in the current period
+    var openaiTokensUsed: Int?
+    /// Total cost in dollars for the current period
+    var openaiCost: Double?
+
+    // Codex CLI-specific fields (subscription-based)
+    /// Codex session messages used (5-hour window)
+    var codexSessionUsed: Int?
+    /// Codex session messages limit (5-hour window)
+    var codexSessionLimit: Int?
+    /// Codex weekly messages used
+    var codexWeeklyUsed: Int?
+    /// Codex weekly messages limit
+    var codexWeeklyLimit: Int?
+
     /// Formats a session reset string with "Resets in" prefix for consistency with GLM display.
     /// - Parameter sessionReset: The raw reset string (e.g., "3h 45m" or "Ready")
     /// - Returns: Formatted display string (e.g., "Resets in 3h 45m" or "Ready")
@@ -79,6 +113,24 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
     /// OAuth refresh token for obtaining new access tokens (loaded from Keychain)
     var oauthRefreshToken: String?
 
+    // Gemini-specific credentials (loaded from Keychain)
+    /// Gemini OAuth access token
+    var geminiAccessToken: String?
+    /// Gemini OAuth refresh token
+    var geminiRefreshToken: String?
+    /// Gemini OAuth ID token
+    var geminiIdToken: String?
+    /// Gemini token expiry date
+    var geminiTokenExpiry: Date?
+
+    // OpenAI API-specific credentials (loaded from Keychain)
+    /// OpenAI Admin API key (required for Usage API access)
+    var openaiAdminApiKey: String?
+
+    // Codex CLI-specific credentials (loaded from Keychain)
+    /// Codex authentication token
+    var codexAuthToken: String?
+
     // Transient state (not persisted)
     /// Indicates the account needs re-authentication (token expired and refresh failed)
     var needsReauth: Bool = false
@@ -100,6 +152,12 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
         apiToken = nil
         oauthToken = nil
         oauthRefreshToken = nil
+        geminiAccessToken = nil
+        geminiRefreshToken = nil
+        geminiIdToken = nil
+        geminiTokenExpiry = nil
+        openaiAdminApiKey = nil
+        codexAuthToken = nil
         needsReauth = false
     }
 
@@ -207,6 +265,99 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
             return false
         }
 
+        // Track Gemini tokens saved for rollback
+        var savedGeminiAccessToken = false
+        var savedGeminiRefreshToken = false
+        var savedGeminiIdToken = false
+        var savedGeminiTokenExpiry = false
+
+        // Helper function to rollback all previously saved credentials
+        func rollbackAll() {
+            if savedCookies {
+                try? KeychainService.delete(forKey: KeychainService.cookiesKey(for: id))
+            }
+            if savedApiToken {
+                try? KeychainService.delete(forKey: KeychainService.apiTokenKey(for: id))
+            }
+            if savedOAuthToken {
+                try? KeychainService.delete(forKey: KeychainService.oauthTokenKey(for: id))
+            }
+            if savedGeminiAccessToken {
+                try? KeychainService.delete(forKey: KeychainService.geminiAccessTokenKey(for: id))
+            }
+            if savedGeminiRefreshToken {
+                try? KeychainService.delete(forKey: KeychainService.geminiRefreshTokenKey(for: id))
+            }
+            if savedGeminiIdToken {
+                try? KeychainService.delete(forKey: KeychainService.geminiIdTokenKey(for: id))
+            }
+            if savedGeminiTokenExpiry {
+                try? KeychainService.delete(forKey: KeychainService.geminiTokenExpiryKey(for: id))
+            }
+        }
+
+        // Save Gemini tokens
+        do {
+            if let token = geminiAccessToken {
+                try KeychainService.save(token, forKey: KeychainService.geminiAccessTokenKey(for: id))
+                savedGeminiAccessToken = true
+                Log.debug(Log.Category.keychain, "Saved Gemini access token for account \(id)")
+            }
+            if let token = geminiRefreshToken {
+                try KeychainService.save(token, forKey: KeychainService.geminiRefreshTokenKey(for: id))
+                savedGeminiRefreshToken = true
+                Log.debug(Log.Category.keychain, "Saved Gemini refresh token for account \(id)")
+            }
+            if let token = geminiIdToken {
+                try KeychainService.save(token, forKey: KeychainService.geminiIdTokenKey(for: id))
+                savedGeminiIdToken = true
+                Log.debug(Log.Category.keychain, "Saved Gemini ID token for account \(id)")
+            }
+            if let expiry = geminiTokenExpiry {
+                let expiryString = String(expiry.timeIntervalSince1970)
+                try KeychainService.save(expiryString, forKey: KeychainService.geminiTokenExpiryKey(for: id))
+                savedGeminiTokenExpiry = true
+                Log.debug(Log.Category.keychain, "Saved Gemini token expiry for account \(id)")
+            }
+        } catch {
+            Log.warning(
+                Log.Category.keychain,
+                "⚠️ Failed to save Gemini tokens for account \(id): \(error.localizedDescription)"
+            )
+            rollbackAll()
+            return false
+        }
+
+        // Save OpenAI Admin API key
+        do {
+            if let key = openaiAdminApiKey {
+                try KeychainService.save(key, forKey: KeychainService.openaiAdminApiKeyKey(for: id))
+                Log.debug(Log.Category.keychain, "Saved OpenAI Admin API key for account \(id)")
+            }
+        } catch {
+            Log.warning(
+                Log.Category.keychain,
+                "⚠️ Failed to save OpenAI Admin API key for account \(id): \(error.localizedDescription)"
+            )
+            rollbackAll()
+            return false
+        }
+
+        // Save Codex auth token
+        do {
+            if let token = codexAuthToken {
+                try KeychainService.save(token, forKey: KeychainService.codexAuthTokenKey(for: id))
+                Log.debug(Log.Category.keychain, "Saved Codex auth token for account \(id)")
+            }
+        } catch {
+            Log.warning(
+                Log.Category.keychain,
+                "⚠️ Failed to save Codex auth token for account \(id): \(error.localizedDescription)"
+            )
+            rollbackAll()
+            return false
+        }
+
         return true
     }
 
@@ -224,7 +375,7 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
             }
             if let token = try KeychainService.loadString(forKey: KeychainService.oauthTokenKey(for: id)) {
                 oauthToken = token
-                Log.debug(Log.Category.keychain, "  Loaded OAuth token (prefix: \(token.prefix(8))...)")
+                Log.debug(Log.Category.keychain, "  Loaded OAuth token (\(Log.sanitize(token)))")
             }
             if let refreshToken = try KeychainService
                 .loadString(forKey: KeychainService.oauthRefreshTokenKey(for: id))
@@ -232,7 +383,44 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
                 oauthRefreshToken = refreshToken
                 Log.debug(Log.Category.keychain, "  Loaded OAuth refresh token")
             }
-            if cookieProps.isEmpty, apiToken == nil, oauthToken == nil {
+
+            // Load Gemini tokens
+            if let token = try KeychainService.loadString(forKey: KeychainService.geminiAccessTokenKey(for: id)) {
+                geminiAccessToken = token
+                Log.debug(Log.Category.keychain, "  Loaded Gemini access token")
+            }
+            if let token = try KeychainService.loadString(forKey: KeychainService.geminiRefreshTokenKey(for: id)) {
+                geminiRefreshToken = token
+                Log.debug(Log.Category.keychain, "  Loaded Gemini refresh token")
+            }
+            if let token = try KeychainService.loadString(forKey: KeychainService.geminiIdTokenKey(for: id)) {
+                geminiIdToken = token
+                Log.debug(Log.Category.keychain, "  Loaded Gemini ID token")
+            }
+            if let expiryString = try KeychainService
+                .loadString(forKey: KeychainService.geminiTokenExpiryKey(for: id)),
+               let expiryInterval = Double(expiryString) {
+                geminiTokenExpiry = Date(timeIntervalSince1970: expiryInterval)
+                Log.debug(Log.Category.keychain, "  Loaded Gemini token expiry")
+            }
+
+            // Load OpenAI Admin API key
+            if let key = try KeychainService.loadString(forKey: KeychainService.openaiAdminApiKeyKey(for: id)) {
+                openaiAdminApiKey = key
+                Log.debug(Log.Category.keychain, "  Loaded OpenAI Admin API key")
+            }
+
+            // Load Codex auth token
+            if let token = try KeychainService.loadString(forKey: KeychainService.codexAuthTokenKey(for: id)) {
+                codexAuthToken = token
+                Log.debug(Log.Category.keychain, "  Loaded Codex auth token")
+            }
+
+            // Check if any credentials were found based on account type
+            let hasAnyCredentials = !cookieProps.isEmpty || apiToken != nil || oauthToken != nil ||
+                geminiAccessToken != nil || openaiAdminApiKey != nil || codexAuthToken != nil ||
+                type == .antigravity // Antigravity doesn't need stored credentials
+            if !hasAnyCredentials {
                 Log.warning(Log.Category.keychain, "  No credentials found in keychain for account \(id)")
             }
         } catch {
@@ -247,6 +435,12 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
         try KeychainService.delete(forKey: KeychainService.apiTokenKey(for: id))
         try KeychainService.delete(forKey: KeychainService.oauthTokenKey(for: id))
         try KeychainService.delete(forKey: KeychainService.oauthRefreshTokenKey(for: id))
+        try KeychainService.delete(forKey: KeychainService.geminiAccessTokenKey(for: id))
+        try KeychainService.delete(forKey: KeychainService.geminiRefreshTokenKey(for: id))
+        try KeychainService.delete(forKey: KeychainService.geminiIdTokenKey(for: id))
+        try KeychainService.delete(forKey: KeychainService.geminiTokenExpiryKey(for: id))
+        try KeychainService.delete(forKey: KeychainService.openaiAdminApiKeyKey(for: id))
+        try KeychainService.delete(forKey: KeychainService.codexAuthTokenKey(for: id))
     }
 
     /// Display string for the account's tier/plan
@@ -341,6 +535,58 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
         cookieProps = []
     }
 
+    /// Creates a new Gemini account with OAuth tokens.
+    /// - Parameters:
+    ///   - name: Display name for the account
+    ///   - accessToken: Gemini OAuth access token
+    ///   - refreshToken: Gemini OAuth refresh token
+    ///   - idToken: Optional Gemini OAuth ID token
+    ///   - tokenExpiry: Optional token expiry date
+    init(name: String, geminiAccessToken: String, geminiRefreshToken: String, geminiIdToken: String? = nil,
+         geminiTokenExpiry: Date? = nil) {
+        self.name = name
+        type = .gemini
+        self.geminiAccessToken = geminiAccessToken
+        self.geminiRefreshToken = geminiRefreshToken
+        self.geminiIdToken = geminiIdToken
+        self.geminiTokenExpiry = geminiTokenExpiry
+        cookieProps = []
+    }
+
+    /// Creates a new Antigravity account (no credentials needed - auto-detected from running process).
+    /// - Parameters:
+    ///   - name: Display name for the account
+    ///   - isAntigravity: Must be true. This parameter disambiguates the initializer from others.
+    /// - Precondition: isAntigravity must be true
+    init(name: String, isAntigravity: Bool) {
+        precondition(isAntigravity, "isAntigravity must be true when using this initializer")
+        self.name = name
+        type = .antigravity
+        cookieProps = []
+    }
+
+    /// Creates a new OpenAI API account with an Admin API key.
+    /// - Parameters:
+    ///   - name: Display name for the account
+    ///   - adminApiKey: OpenAI Admin API key (required for Usage API access)
+    init(name: String, openaiAdminApiKey: String) {
+        self.name = name
+        type = .openai
+        self.openaiAdminApiKey = openaiAdminApiKey
+        cookieProps = []
+    }
+
+    /// Creates a new Codex CLI account with an auth token.
+    /// - Parameters:
+    ///   - name: Display name for the account
+    ///   - codexAuthToken: Codex authentication token
+    init(name: String, codexAuthToken: String) {
+        self.name = name
+        type = .codex
+        self.codexAuthToken = codexAuthToken
+        cookieProps = []
+    }
+
     // MARK: - Convenience Properties
 
     /// Whether this account uses OAuth authentication (preferred method)
@@ -357,6 +603,15 @@ struct ClaudeAccount: Identifiable, Hashable, Codable {
             !cookieProps.isEmpty
         case .glm:
             apiToken?.isEmpty == false
+        case .gemini:
+            geminiAccessToken?.isEmpty == false
+        case .antigravity:
+            // Antigravity doesn't need stored credentials - it auto-detects from running process
+            true
+        case .openai:
+            openaiAdminApiKey?.isEmpty == false
+        case .codex:
+            codexAuthToken?.isEmpty == false
         }
     }
 

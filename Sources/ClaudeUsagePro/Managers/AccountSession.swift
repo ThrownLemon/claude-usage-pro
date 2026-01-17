@@ -25,6 +25,10 @@ class AccountSession: Identifiable {
     private var cursorTracker: CursorTrackerService?
     private var glmTracker: GLMTrackerService?
     private var oauthService: AnthropicOAuthService?
+    private var geminiTracker: GeminiTrackerService?
+    private var antigravityTracker: AntigravityTrackerService?
+    private var openaiTracker: OpenAITrackerService?
+    private var codexTracker: CodexTrackerService?
 
     // MARK: - Thread-Safe Timer/Task Management
 
@@ -66,7 +70,7 @@ class AccountSession: Identifiable {
                 oauthService = AnthropicOAuthService()
                 Log.debug(
                     category,
-                    "Using OAuth API for \(account.name) (token prefix: \(account.oauthToken?.prefix(15) ?? "nil")...)"
+                    "Using OAuth API for \(account.name) (token: \(Log.sanitize(account.oauthToken)))"
                 )
             } else {
                 tracker = TrackerService()
@@ -79,6 +83,18 @@ class AccountSession: Identifiable {
             cursorTracker = CursorTrackerService()
         case .glm:
             glmTracker = GLMTrackerService()
+        case .gemini:
+            geminiTracker = GeminiTrackerService()
+            Log.debug(category, "Using Gemini tracker for \(account.name)")
+        case .antigravity:
+            antigravityTracker = AntigravityTrackerService()
+            Log.debug(category, "Using Antigravity tracker for \(account.name)")
+        case .openai:
+            openaiTracker = OpenAITrackerService()
+            Log.debug(category, "Using OpenAI tracker for \(account.name)")
+        case .codex:
+            codexTracker = CodexTrackerService()
+            Log.debug(category, "Using Codex tracker for \(account.name)")
         }
 
         setupTracker()
@@ -241,6 +257,95 @@ class AccountSession: Identifiable {
                 } catch {
                     guard !Task.isCancelled else { return }
                     handleGLMUsageResult(.failure(error))
+                }
+            }
+        case .gemini:
+            fetchTask = Task { [weak self] in
+                guard let self else { return }
+                guard let accessToken = account.geminiAccessToken else {
+                    handleGeminiUsageResult(.failure(GeminiTrackerError.credentialsNotFound))
+                    return
+                }
+
+                do {
+                    // Check if token needs refresh
+                    if let expiry = account.geminiTokenExpiry, expiry < Date(),
+                       let refreshToken = account.geminiRefreshToken
+                    {
+                        Log.info(category, "Gemini token expired, attempting refresh")
+                        let newTokens = try await geminiTracker?.refreshToken(refreshToken: refreshToken)
+                        if let newTokens {
+                            // Update account with new tokens
+                            account.geminiAccessToken = newTokens.accessToken
+                            account.geminiIdToken = newTokens.idToken
+                            if let expiry = newTokens.expiryDate {
+                                account.geminiTokenExpiry = Date(timeIntervalSince1970: Double(expiry) / 1000.0)
+                            }
+                            if !account.saveCredentialsToKeychain() {
+                                Log.warning(category, "Failed to save refreshed Gemini credentials to Keychain")
+                            }
+                        }
+                    }
+
+                    let currentToken = account.geminiAccessToken ?? accessToken
+                    let info = try await geminiTracker?.fetchUsage(accessToken: currentToken)
+                    guard !Task.isCancelled else { return }
+                    if let info {
+                        handleGeminiUsageResult(.success(info))
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    handleGeminiUsageResult(.failure(error))
+                }
+            }
+        case .antigravity:
+            fetchTask = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let info = try await antigravityTracker?.fetchUsage()
+                    guard !Task.isCancelled else { return }
+                    if let info {
+                        handleAntigravityUsageResult(.success(info))
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    handleAntigravityUsageResult(.failure(error))
+                }
+            }
+        case .openai:
+            fetchTask = Task { [weak self] in
+                guard let self else { return }
+                guard let adminApiKey = account.openaiAdminApiKey else {
+                    handleOpenAIUsageResult(.failure(OpenAITrackerError.apiKeyNotFound))
+                    return
+                }
+                do {
+                    let info = try await openaiTracker?.fetchUsage(adminApiKey: adminApiKey)
+                    guard !Task.isCancelled else { return }
+                    if let info {
+                        handleOpenAIUsageResult(.success(info))
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    handleOpenAIUsageResult(.failure(error))
+                }
+            }
+        case .codex:
+            fetchTask = Task { [weak self] in
+                guard let self else { return }
+                guard let authToken = account.codexAuthToken else {
+                    handleCodexUsageResult(.failure(CodexTrackerError.tokenNotFound))
+                    return
+                }
+                do {
+                    let info = try await codexTracker?.fetchUsage(authToken: authToken)
+                    guard !Task.isCancelled else { return }
+                    if let info {
+                        handleCodexUsageResult(.success(info))
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    handleCodexUsageResult(.failure(error))
                 }
             }
         }
@@ -431,6 +536,212 @@ class AccountSession: Identifiable {
             lastError = error
             Log.error(Log.Category.glmTracker, "Fetch failed: \(error)")
             // No cached data fallback - show error state to user
+        }
+    }
+
+    private func handleGeminiUsageResult(_ result: Result<GeminiUsageInfo, Error>) {
+        isFetching = false
+        switch result {
+        case let .success(info):
+            let sessionResetDisplay = info.resetTime ?? Constants.Status.ready
+
+            let usageData = UsageData(
+                sessionPercentage: info.sessionPercentage,
+                sessionReset: info.resetTime ?? Constants.Status.ready,
+                sessionResetDisplay: sessionResetDisplay,
+                weeklyPercentage: 0, // Gemini doesn't have weekly limits
+                weeklyReset: Constants.Status.ready,
+                weeklyResetDisplay: Constants.Status.ready,
+                tier: info.tier,
+                email: nil,
+                fullName: nil,
+                orgName: "Gemini",
+                planType: info.tier,
+                geminiRemainingFraction: info.remainingFraction,
+                geminiModelId: info.modelId
+            )
+            updateWithUsageData(usageData)
+
+            // Cache the successful result
+            Task {
+                await UsageCache.shared.set(usageData, for: account.id)
+            }
+
+            if account.name.starts(with: "Account ") || account.name.starts(with: "Gemini") {
+                account.name = "Gemini (\(info.tier))"
+            }
+
+            Log.info(category, "Gemini fetch successful for \(account.name)")
+
+        case let .failure(error):
+            // Check if token expired and needs refresh
+            if case GeminiTrackerError.tokenExpired = error,
+               let refreshToken = account.geminiRefreshToken
+            {
+                Log.info(category, "Gemini token expired, attempting refresh...")
+                attemptGeminiTokenRefresh(refreshToken: refreshToken)
+                return
+            }
+
+            lastError = error
+            Log.error(category, "Gemini fetch failed: \(error)")
+        }
+    }
+
+    private func handleAntigravityUsageResult(_ result: Result<AntigravityUsageInfo, Error>) {
+        isFetching = false
+        switch result {
+        case let .success(info):
+            let sessionResetDisplay = info.resetTime ?? Constants.Status.ready
+
+            let usageData = UsageData(
+                sessionPercentage: info.sessionPercentage,
+                sessionReset: info.resetTime ?? Constants.Status.ready,
+                sessionResetDisplay: sessionResetDisplay,
+                weeklyPercentage: info.weeklyPercentage,
+                weeklyReset: info.resetTime ?? Constants.Status.ready,
+                weeklyResetDisplay: sessionResetDisplay,
+                tier: info.tier,
+                email: nil,
+                fullName: nil,
+                orgName: "Antigravity",
+                planType: info.tier,
+                antigravityModelName: info.modelName
+            )
+            updateWithUsageData(usageData)
+
+            // Cache the successful result
+            Task {
+                await UsageCache.shared.set(usageData, for: account.id)
+            }
+
+            if account.name.starts(with: "Account ") || account.name.starts(with: "Antigravity") {
+                account.name = "Antigravity (\(info.tier))"
+            }
+
+            Log.info(category, "Antigravity fetch successful for \(account.name)")
+
+        case let .failure(error):
+            lastError = error
+            Log.error(category, "Antigravity fetch failed: \(error)")
+        }
+    }
+
+    private func handleOpenAIUsageResult(_ result: Result<OpenAIUsageInfo, Error>) {
+        isFetching = false
+        switch result {
+        case let .success(info):
+            // OpenAI doesn't have session/weekly limits like Claude
+            // We display tokens used and estimated cost
+            let usageData = UsageData(
+                sessionPercentage: 0, // Pay-per-token has no percentage
+                sessionReset: Constants.Status.ready,
+                sessionResetDisplay: "\(info.tokensUsed.formatted()) tokens",
+                weeklyPercentage: 0,
+                weeklyReset: Constants.Status.ready,
+                weeklyResetDisplay: "$\(String(format: "%.4f", info.estimatedCost))",
+                tier: "Pay-per-token",
+                email: nil,
+                fullName: nil,
+                orgName: info.orgName ?? "OpenAI",
+                planType: "API Usage",
+                openaiTokensUsed: info.tokensUsed,
+                openaiCost: info.estimatedCost
+            )
+            updateWithUsageData(usageData)
+
+            // Cache the successful result
+            Task {
+                await UsageCache.shared.set(usageData, for: account.id)
+            }
+
+            if account.name.starts(with: "Account ") || account.name.starts(with: "OpenAI") {
+                if let orgName = info.orgName {
+                    account.name = "OpenAI (\(orgName))"
+                } else {
+                    account.name = "OpenAI API"
+                }
+            }
+
+            Log.info(category, "OpenAI fetch successful for \(account.name)")
+
+        case let .failure(error):
+            lastError = error
+            Log.error(category, "OpenAI fetch failed: \(error)")
+        }
+    }
+
+    private func handleCodexUsageResult(_ result: Result<CodexUsageInfo, Error>) {
+        isFetching = false
+        switch result {
+        case let .success(info):
+            let sessionResetDisplay = info.sessionResetTime ?? "\(info.sessionUsed) / \(info.sessionLimit) msgs"
+            let weeklyResetDisplay = info.weeklyResetTime ?? "\(info.weeklyUsed) / \(info.weeklyLimit) msgs"
+
+            let usageData = UsageData(
+                sessionPercentage: info.sessionPercentage,
+                sessionReset: info.sessionResetTime ?? Constants.Status.ready,
+                sessionResetDisplay: sessionResetDisplay,
+                weeklyPercentage: info.weeklyPercentage,
+                weeklyReset: info.weeklyResetTime ?? Constants.Status.ready,
+                weeklyResetDisplay: weeklyResetDisplay,
+                tier: info.planType,
+                email: nil,
+                fullName: nil,
+                orgName: "Codex",
+                planType: info.planType,
+                codexSessionUsed: info.sessionUsed,
+                codexSessionLimit: info.sessionLimit,
+                codexWeeklyUsed: info.weeklyUsed,
+                codexWeeklyLimit: info.weeklyLimit
+            )
+            updateWithUsageData(usageData)
+
+            // Cache the successful result
+            Task {
+                await UsageCache.shared.set(usageData, for: account.id)
+            }
+
+            if account.name.starts(with: "Account ") || account.name.starts(with: "Codex") {
+                account.name = "Codex (\(info.planType))"
+            }
+
+            Log.info(category, "Codex fetch successful for \(account.name)")
+
+        case let .failure(error):
+            lastError = error
+            Log.error(category, "Codex fetch failed: \(error)")
+        }
+    }
+
+    /// Attempt to refresh Gemini OAuth token
+    private func attemptGeminiTokenRefresh(refreshToken: String) {
+        guard let geminiTracker else {
+            Log.error(category, "No Gemini tracker available for refresh")
+            markNeedsReauthWithNotification()
+            return
+        }
+
+        Task { @MainActor in
+            do {
+                let newTokens = try await geminiTracker.refreshToken(refreshToken: refreshToken)
+
+                // Update account with new tokens
+                self.account.geminiAccessToken = newTokens.accessToken
+                self.account.geminiIdToken = newTokens.idToken
+                if let expiry = newTokens.expiryDate {
+                    self.account.geminiTokenExpiry = Date(timeIntervalSince1970: Double(expiry) / 1000.0)
+                }
+                self.account.saveCredentialsToKeychain()
+
+                Log.info(self.category, "Gemini token refresh successful, retrying fetch...")
+                self.fetchNow()
+
+            } catch {
+                Log.error(self.category, "Gemini token refresh failed: \(error.localizedDescription)")
+                self.markNeedsReauthWithNotification()
+                self.lastError = error
+            }
         }
     }
 

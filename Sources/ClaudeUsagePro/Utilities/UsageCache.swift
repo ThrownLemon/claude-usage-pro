@@ -2,6 +2,11 @@ import Foundation
 
 /// A simple cache for storing usage data to provide offline resilience.
 /// Stores the last successful fetch for each account.
+///
+/// Security measures:
+/// - File permissions set to 0600 (owner-only read/write)
+/// - Atomic writes to prevent corruption
+/// - Stored in user's Caches directory (not synced or shared)
 actor UsageCache {
     /// Shared singleton instance
     static let shared = UsageCache()
@@ -94,12 +99,22 @@ actor UsageCache {
 
     // MARK: - Persistence
 
+    /// Save cache to disk with restricted file permissions.
+    /// Uses atomic writes to prevent data corruption and sets owner-only permissions (0600).
     private func saveToDisk() {
         guard let url = cacheFileURL else { return }
 
         do {
             let data = try JSONEncoder().encode(cache)
-            try data.write(to: url)
+            // Use atomic writes to prevent data corruption on crash
+            try data.write(to: url, options: [.atomic])
+
+            // Set file permissions to owner-only read/write (0600)
+            // This restricts access to the current user only
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: url.path
+            )
         } catch {
             Log.error(Log.Category.cache, "Failed to save cache: \(error)")
         }

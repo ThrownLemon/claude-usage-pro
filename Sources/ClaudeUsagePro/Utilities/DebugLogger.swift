@@ -70,6 +70,31 @@ enum Log {
         static let cache = "Cache"
     }
 
+    // MARK: - Credential Sanitization
+
+    /// Sanitize a credential for safe logging.
+    /// Shows only the last 4 characters to aid debugging without exposing the full token.
+    /// - Parameter credential: The credential string to sanitize
+    /// - Returns: A sanitized string showing only the suffix (e.g., "****abc1")
+    static func sanitize(_ credential: String?) -> String {
+        guard let credential, !credential.isEmpty else {
+            return "<none>"
+        }
+        let suffix = String(credential.suffix(4))
+        return "****\(suffix)"
+    }
+
+    /// Sanitize a credential showing its length and last 4 characters.
+    /// - Parameter credential: The credential string to sanitize
+    /// - Returns: A sanitized string with length info (e.g., "[len:45]****abc1")
+    static func sanitizeWithLength(_ credential: String?) -> String {
+        guard let credential, !credential.isEmpty else {
+            return "<none>"
+        }
+        let suffix = String(credential.suffix(4))
+        return "[len:\(credential.count)]****\(suffix)"
+    }
+
     // MARK: - Logging Methods
 
     /// Log debug message (only when debug mode is enabled)
@@ -160,6 +185,18 @@ enum Log {
         case .glm:
             icon = "🤖"
             providerName = "GLM"
+        case .gemini:
+            icon = "💫"
+            providerName = "GEMINI"
+        case .antigravity:
+            icon = "⚛️"
+            providerName = "ANTIGRAVITY"
+        case .openai:
+            icon = "🧠"
+            providerName = "OPENAI"
+        case .codex:
+            icon = "💻"
+            providerName = "CODEX"
         }
 
         let sessionPct = Int(usageData.sessionPercentage * 100)
@@ -222,6 +259,50 @@ enum Log {
                 monthlyLimit
             )) (\(weeklyPct)%)
             ║ 👤 Plan:     GLM Coding Plan
+            """
+
+        case .gemini:
+            let remaining = usageData.geminiRemainingFraction ?? (1.0 - usageData.sessionPercentage)
+            output += """
+
+            ║ 📊 Quota:    \(sessionPct)% used │ \(Int(remaining * 100))% remaining
+            ║ 👤 Tier:     \(usageData.tier)
+            """
+            if let modelId = usageData.geminiModelId {
+                output += "\n║ 🤖 Model:    \(modelId)"
+            }
+
+        case .antigravity:
+            output += """
+
+            ║ 📊 Session:  \(sessionPct)% │ Reset: \(usageData.sessionResetDisplay)
+            ║ 📈 Weekly:   \(weeklyPct)% │ Reset: \(usageData.weeklyResetDisplay)
+            ║ 👤 Tier:     \(usageData.tier)
+            """
+            if let modelName = usageData.antigravityModelName {
+                output += "\n║ 🤖 Model:    \(modelName)"
+            }
+
+        case .openai:
+            let tokensUsed = usageData.openaiTokensUsed ?? 0
+            let cost = usageData.openaiCost ?? 0
+            output += """
+
+            ║ 📊 Tokens:   \(tokensUsed.formatted())
+            ║ 💰 Cost:     $\(String(format: "%.4f", cost))
+            ║ 👤 Org:      \(usageData.orgName ?? "Unknown")
+            """
+
+        case .codex:
+            let sessionUsed = usageData.codexSessionUsed ?? 0
+            let sessionLimit = usageData.codexSessionLimit ?? 0
+            let weeklyUsed = usageData.codexWeeklyUsed ?? 0
+            let weeklyLimit = usageData.codexWeeklyLimit ?? 0
+            output += """
+
+            ║ ⏱️ Session:  \(sessionUsed) / \(sessionLimit) msgs (\(sessionPct)%)
+            ║ 📅 Weekly:   \(weeklyUsed) / \(weeklyLimit) msgs (\(weeklyPct)%)
+            ║ 👤 Plan:     \(usageData.planType ?? "Plus")
             """
         }
 

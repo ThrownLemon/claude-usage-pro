@@ -105,9 +105,10 @@ struct GLMUsageInfo {
 }
 
 /// Service for fetching GLM Coding Plan usage statistics from the Zhipu AI API.
-/// Marked @unchecked Sendable because all properties are immutable after init
-/// and async methods use only URLSession.shared which is itself Sendable.
-final class GLMTrackerService: @unchecked Sendable {
+///
+/// Thread-safety: All properties are immutable after initialization.
+/// Async methods use URLSession which is internally thread-safe.
+final class GLMTrackerService: Sendable {
     private let category = Log.Category.glmTracker
     private let baseURL: String
     private let modelUsageURL: String
@@ -136,14 +137,13 @@ final class GLMTrackerService: @unchecked Sendable {
     init() {
         // Determine platform based on ANTHROPIC_BASE_URL environment variable (like the plugin)
         let anthropicBaseURL = ProcessInfo.processInfo.environment["ANTHROPIC_BASE_URL"] ?? ""
-        let defaultDomain = "https://open.bigmodel.cn"
 
         let domain: String = if anthropicBaseURL.contains("api.z.ai") {
-            Self.extractBaseDomain(from: anthropicBaseURL) ?? "https://api.z.ai"
+            Self.extractBaseDomain(from: anthropicBaseURL) ?? Constants.GLM.fallbackDomain
         } else if anthropicBaseURL.contains("open.bigmodel.cn") || anthropicBaseURL.contains("dev.bigmodel.cn") {
-            Self.extractBaseDomain(from: anthropicBaseURL) ?? defaultDomain
+            Self.extractBaseDomain(from: anthropicBaseURL) ?? Constants.GLM.defaultDomain
         } else {
-            defaultDomain
+            Constants.GLM.defaultDomain
         }
 
         let endpoints = Self.buildEndpoints(fromDomain: domain)
